@@ -74,23 +74,24 @@ export async function execute(
 
     // ── Role check ────────────────────────────────────────────────────────────
     if (config.adminRoleId) {
-      const member = interaction.member;
-      if (member && 'roles' in member) {
-        const roles = member.roles;
-        const hasRole = 'cache' in roles
-          ? roles.cache.has(config.adminRoleId)
-          : (roles as string[]).includes(config.adminRoleId);
+  const member = await interaction.guild?.members.fetch(interaction.user.id);
 
-        if (!hasRole) {
-          await interaction.reply({
-            content: '❌ You need the staff role to review heist submissions.',
-            ephemeral: true,
-          });
-          return;
-        }
-      }
-    }
+  if (!member) {
+    return interaction.reply({
+      content: '❌ Unable to verify your permissions.',
+      ephemeral: true,
+    });
+  }
 
+  const hasRole = member.roles.cache.has(config.adminRoleId);
+
+  if (!hasRole) {
+    return interaction.reply({
+      content: '❌ You need the staff role to review heist submissions.',
+      ephemeral: true,
+    });
+  }
+}
     // Defer a new reply so we can attach the canvas card
     await interaction.deferReply();
 
