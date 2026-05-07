@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config } from 'dotenv';
-import { logger } from './utils/logger.js';
+import { logger } from './utils/logger';
 import { loadCommands } from './services/command-loader.js';
 import * as readyEvent from './events/ready.js';
 import * as interactionEvent from './events/interaction-create.js';
