@@ -1,11 +1,13 @@
 import {
   ChatInputCommandInteraction, SlashCommandBuilder,
   ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder,
-  EmbedBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle,
+  EmbedBuilder, ButtonBuilder, ButtonStyle,
+  ModalSubmitInteraction, TextChannel, Guild,
 } from 'discord.js';
 import { PlayerSystem } from '../systems/player.js';
 import { HeistSystem } from '../systems/heist.js';
-import { DIFFICULTY_CONFIG, COLORS, type Difficulty } from '../utils/constants.js';
+import { DIFFICULTY_CONFIG, type Difficulty } from '../utils/constants.js';
+import { formatNumber } from '../utils/helpers.js';
 import { logger } from '../utils/logger.js';
 
 export const data = new SlashCommandBuilder()
@@ -30,51 +32,54 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const modal = new ModalBuilder()
     .setCustomId(`heist_modal:${difficulty}`)
-    .setTitle(`🎯 Heist Log — ${diffConfig.label}`);
-
-  const heistNameInput = new TextInputBuilder()
-    .setCustomId('heist_name')
-    .setLabel('Heist Name')
-    .setPlaceholder('e.g. The Cayo Perico Job, Diamond Casino Heist')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setMaxLength(64);
-
-  const teammatesInput = new TextInputBuilder()
-    .setCustomId('teammates')
-    .setLabel('Teammates (mention up to 4, or leave blank)')
-    .setPlaceholder('@user1 @user2 @user3')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false)
-    .setMaxLength(200);
-
-  const proofInput = new TextInputBuilder()
-    .setCustomId('proof_url')
-    .setLabel('Proof URL (image/video link)')
-    .setPlaceholder('https://imgur.com/... or https://streamable.com/...')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setMaxLength(500);
-
-  const notesInput = new TextInputBuilder()
-    .setCustomId('notes')
-    .setLabel('Notes (optional)')
-    .setPlaceholder('Any additional context about the heist...')
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(false)
-    .setMaxLength(500);
+    .setTitle(`Heist Log — ${diffConfig.label}`);
 
   modal.addComponents(
-    new ActionRowBuilder<TextInputBuilder>().addComponents(heistNameInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(teammatesInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(proofInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(notesInput),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId('heist_name')
+        .setLabel('Heist Name')
+        .setPlaceholder('e.g. The Cayo Perico Job, Diamond Casino Heist')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setMaxLength(64)
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId('teammates')
+        .setLabel('Teammates (mention up to 4, or leave blank)')
+        .setPlaceholder('@user1 @user2 @user3')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(200)
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId('proof_url')
+        .setLabel('Proof URL (image/video link)')
+        .setPlaceholder('https://imgur.com/... or https://streamable.com/...')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setMaxLength(500)
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId('notes')
+        .setLabel('Notes (optional)')
+        .setPlaceholder('Any additional context about the heist...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
+        .setMaxLength(500)
+    ),
   );
 
   await interaction.showModal(modal);
 }
 
-export async function handleHeistModal(interaction: import('discord.js').ModalSubmitInteraction, reviewChannelId: string | undefined): Promise<void> {
+export async function handleHeistModal(
+  interaction: ModalSubmitInteraction,
+  reviewChannelId: string | undefined
+): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
   const [, difficulty] = interaction.customId.split(':') as [string, Difficulty];
@@ -87,12 +92,13 @@ export async function handleHeistModal(interaction: import('discord.js').ModalSu
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
   PlayerSystem.getOrCreate(user.id, user.username, avatarUrl);
 
+  // Parse teammate mentions
   const teammates = teammatesRaw
-    ? [...teammatesRaw.matchAll(/<@!?(\d+)>/g)].map(m => m[1]).slice(0, 4)
+    ? [...teammatesRaw.matchAll(/<@!?(\d+)>/g)].map(m => m[1]).filter(id => id !== user.id).slice(0, 4)
     : [];
 
   const diffConfig = DIFFICULTY_CONFIG[difficulty];
-  const estimatedXP = HeistSystem.calculateRewards(difficulty);
+  const estimatedRewards = HeistSystem.calculateRewards(difficulty);
 
   try {
     const submission = HeistSystem.submit({
@@ -105,60 +111,82 @@ export async function handleHeistModal(interaction: import('discord.js').ModalSu
       submissionChannelId: interaction.channelId ?? undefined,
     });
 
-    // Post to review channel
-    if (reviewChannelId) {
-      const guild = (interaction as unknown as { guild: import('discord.js').Guild }).guild;
-      const reviewChannel = guild?.channels.cache.get(reviewChannelId) as import('discord.js').TextChannel | undefined;
+    // Post to the staff review channel
+    if (reviewChannelId && interaction.guild) {
+      try {
+        const reviewChannel = await fetchTextChannel(interaction.guild, reviewChannelId);
 
-      if (reviewChannel) {
-        const reviewEmbed = new EmbedBuilder()
-          .setColor(0xC8A951)
-          .setTitle(`📋 HEIST SUBMISSION — ${heistName.toUpperCase()}`)
-          .setDescription(`**Difficulty:** ◆ ${diffConfig.label}\n**Submitted by:** <@${user.id}>`)
-          .addFields(
-            { name: '🎯 Heist', value: heistName, inline: true },
-            { name: '⚡ Difficulty', value: diffConfig.label, inline: true },
-            { name: '🤝 Teammates', value: teammates.length > 0 ? teammates.map(t => `<@${t}>`).join(', ') : 'Solo', inline: true },
-            { name: '📎 Proof', value: `[View Proof](${proofUrl})`, inline: true },
-            { name: '💰 Est. Reward', value: `~${estimatedXP.xp} XP / ~$${estimatedXP.coins}`, inline: true },
-            ...(notes ? [{ name: '📝 Notes', value: notes }] : []),
-          )
-          .setThumbnail(user.displayAvatarURL())
-          .setFooter({ text: `Submission ID: ${submission.id}` })
-          .setTimestamp();
+        if (reviewChannel) {
+          const reviewEmbed = new EmbedBuilder()
+            .setColor(0xC8A951)
+            .setTitle(`HEIST SUBMISSION — ${heistName.toUpperCase()}`)
+            .setDescription(
+              `**Difficulty:** ${diffConfig.label}\n` +
+              `**Submitted by:** <@${user.id}>\n` +
+              `**Teammates:** ${teammates.length > 0 ? teammates.map(t => `<@${t}>`).join(', ') : 'Solo'}`
+            )
+            .addFields(
+              { name: 'Proof', value: `[Click to view](${proofUrl})`, inline: true },
+              { name: 'Est. XP', value: `~${formatNumber(estimatedRewards.xp)}`, inline: true },
+              { name: 'Est. Coins', value: `~$${formatNumber(estimatedRewards.coins)}`, inline: true },
+              ...(notes ? [{ name: 'Notes', value: notes }] : []),
+            )
+            .setThumbnail(user.displayAvatarURL())
+            .setFooter({ text: `Submission ID: ${submission.id}` })
+            .setTimestamp();
 
-        const approveBtn = new ButtonBuilder()
-          .setCustomId(`heist_approve:${submission.id}`)
-          .setLabel('✅ APPROVE')
-          .setStyle(ButtonStyle.Success);
+          const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`heist_approve:${submission.id}`)
+              .setLabel('APPROVE')
+              .setEmoji('✅')
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId(`heist_reject:${submission.id}`)
+              .setLabel('REJECT')
+              .setEmoji('❌')
+              .setStyle(ButtonStyle.Danger),
+          );
 
-        const rejectBtn = new ButtonBuilder()
-          .setCustomId(`heist_reject:${submission.id}`)
-          .setLabel('❌ REJECT')
-          .setStyle(ButtonStyle.Danger);
-
-        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(approveBtn, rejectBtn);
-
-        const reviewMsg = await reviewChannel.send({ embeds: [reviewEmbed], components: [row] });
-        HeistSystem.setReviewMessage(submission.id, reviewMsg.id);
+          const reviewMsg = await reviewChannel.send({ embeds: [reviewEmbed], components: [row] });
+          HeistSystem.setReviewMessage(submission.id, reviewMsg.id);
+          logger.game(`Review embed posted to #${reviewChannel.name} for submission ${submission.id}`);
+        } else {
+          logger.warn(`Review channel ${reviewChannelId} not found or not a text channel`);
+        }
+      } catch (channelErr) {
+        logger.warn(`Could not post to review channel: ${String(channelErr)}`);
       }
     }
 
     await interaction.editReply({
       content: [
-        `✅ **Heist submitted!** Your crew will be watching, boss.`,
+        `✅ **Heist submitted successfully!** Stand by for staff review.`,
         ``,
-        `> 🎯 **${heistName}** (\`${diffConfig.label}\`)`,
-        `> 📎 Proof submitted for staff review.`,
-        `> 🆔 ID: \`${submission.id}\``,
-        ``,
-        `_Staff will review your submission. Rewards are paid on approval._`,
+        `> **${heistName}** — ${diffConfig.label}`,
+        `> Proof attached. Rewards distributed on approval.`,
+        `> Submission ID: \`${submission.id}\``,
       ].join('\n'),
     });
 
-    logger.game(`Heist submitted by ${user.username}: ${heistName} (${difficulty})`);
+    logger.game(`Heist submitted by ${user.username}: "${heistName}" (${difficulty})`);
   } catch (err) {
     logger.error('Heist submission failed:', err);
     await interaction.editReply('❌ Failed to submit heist. Please try again.');
+  }
+}
+
+async function fetchTextChannel(guild: Guild, channelId: string): Promise<TextChannel | null> {
+  try {
+    // Check cache first, then fetch from API
+    const cached = guild.channels.cache.get(channelId);
+    if (cached?.isTextBased()) return cached as TextChannel;
+
+    const fetched = await guild.channels.fetch(channelId);
+    if (fetched?.isTextBased()) return fetched as TextChannel;
+
+    return null;
+  } catch {
+    return null;
   }
 }

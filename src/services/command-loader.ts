@@ -6,10 +6,11 @@ import * as stats from '../commands/stats.js';
 import * as heistLog from '../commands/heist-log.js';
 import * as crew from '../commands/crew.js';
 import * as inventory from '../commands/inventory.js';
+import * as admin from '../commands/admin.js';
 import { logger } from '../utils/logger.js';
 
 type CommandModule = {
-  data: { name: string; toJSON: () => unknown };
+  data: { name: string; toJSON?: () => unknown };
   execute: (interaction: import('discord.js').ChatInputCommandInteraction) => Promise<void>;
 };
 
@@ -24,6 +25,7 @@ export function loadCommands(): Collection<string, CommandModule> {
     heistLog as unknown as CommandModule,
     crew as unknown as CommandModule,
     inventory as unknown as CommandModule,
+    admin as unknown as CommandModule,
   ];
 
   for (const mod of modules) {
@@ -31,5 +33,6 @@ export function loadCommands(): Collection<string, CommandModule> {
     logger.info(`Loaded command: /${mod.data.name}`);
   }
 
+  logger.success(`${commands.size} commands loaded`);
   return commands;
 }

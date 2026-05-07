@@ -23,8 +23,8 @@ export function getDB(): Database.Database {
   return db;
 }
 
-function initSchema(db: Database.Database): void {
-  db.exec(`
+function initSchema(database: Database.Database): void {
+  database.exec(`
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,
       discord_id TEXT UNIQUE NOT NULL,
@@ -64,8 +64,7 @@ function initSchema(db: Database.Database): void {
       review_message_id TEXT,
       submission_channel_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      reviewed_at TEXT,
-      FOREIGN KEY (submitter_id) REFERENCES players(discord_id)
+      reviewed_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS crews (
@@ -127,10 +126,16 @@ export const PlayerDB = {
     return this.findByDiscordId(discordId) ?? this.create(discordId, username, avatarUrl);
   },
 
-  update(discordId: string, data: Partial<Player>): void {
+  update(discordId: string, data: Partial<Omit<Player, 'id' | 'discord_id' | 'created_at'>>): void {
+    if (Object.keys(data).length === 0) return;
     const sets = Object.keys(data).map(k => `${k} = ?`).join(', ');
     const values = [...Object.values(data), new Date().toISOString(), discordId];
     getDB().prepare(`UPDATE players SET ${sets}, updated_at = ? WHERE discord_id = ?`).run(...values);
+  },
+
+  clearCrewId(discordId: string): void {
+    getDB().prepare("UPDATE players SET crew_id = NULL, updated_at = ? WHERE discord_id = ?")
+      .run(new Date().toISOString(), discordId);
   },
 
   addXP(discordId: string, xp: number): { newXP: number; newLevel: number; leveledUp: boolean } {
@@ -142,9 +147,28 @@ export const PlayerDB = {
     return { newXP, newLevel, leveledUp };
   },
 
+  // Atomically add coins AND track total_earnings in a single SQL statement
+  addEarnings(discordId: string, coins: number): void {
+    getDB().prepare(`
+      UPDATE players
+      SET coins = coins + ?, total_earnings = total_earnings + ?, updated_at = ?
+      WHERE discord_id = ?
+    `).run(coins, coins, new Date().toISOString(), discordId);
+  },
+
+  // Add coins without affecting total_earnings (admin gives, daily rewards, etc.)
   addCoins(discordId: string, coins: number): void {
     getDB().prepare('UPDATE players SET coins = coins + ?, updated_at = ? WHERE discord_id = ?')
       .run(coins, new Date().toISOString(), discordId);
+  },
+
+  // Directly add XP without level recalculation (admin use)
+  addXPRaw(discordId: string, xp: number): void {
+    getDB().prepare(`
+      UPDATE players
+      SET xp = xp + ?, level = (((xp + ?) / 500) + 1), updated_at = ?
+      WHERE discord_id = ?
+    `).run(xp, xp, new Date().toISOString(), discordId);
   },
 
   getLeaderboard(limit = 10): Player[] {
@@ -166,12 +190,20 @@ export const PlayerDB = {
 };
 
 export const HeistDB = {
-  create(data: Omit<HeistSubmission, 'id' | 'status' | 'reviewer_id' | 'reviewer_note' | 'xp_awarded' | 'coins_awarded' | 'review_message_id' | 'reviewed_at' | 'created_at'>): HeistSubmission {
+  create(data: {
+    submitter_id: string;
+    heist_name: string;
+    difficulty: string;
+    teammates: string;
+    proof_url: string;
+    notes: string | null;
+    submission_channel_id: string | null;
+  }): HeistSubmission {
     const id = uuidv4();
     getDB().prepare(`
       INSERT INTO heist_submissions (id, submitter_id, heist_name, difficulty, teammates, proof_url, notes, submission_channel_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, data.submitter_id, data.heist_name, data.difficulty, data.teammates, data.proof_url, data.notes ?? null, data.submission_channel_id ?? null);
+    `).run(id, data.submitter_id, data.heist_name, data.difficulty, data.teammates, data.proof_url, data.notes, data.submission_channel_id);
     return this.findById(id)!;
   },
 
@@ -210,6 +242,11 @@ export const HeistDB = {
   getPlayerHistory(discordId: string, limit = 10): HeistSubmission[] {
     return getDB().prepare("SELECT * FROM heist_submissions WHERE submitter_id = ? ORDER BY created_at DESC LIMIT ?").all(discordId, limit) as HeistSubmission[];
   },
+
+  countPending(): number {
+    const result = getDB().prepare("SELECT COUNT(*) as c FROM heist_submissions WHERE status = 'pending'").get() as { c: number };
+    return result.c;
+  },
 };
 
 export const CrewDB = {
@@ -244,13 +281,22 @@ export const CrewDB = {
   },
 
   removeMember(crewId: string, discordId: string): void {
-    PlayerDB.update(discordId, { crew_id: null as unknown as string });
-    getDB().prepare('UPDATE crews SET member_count = member_count - 1 WHERE id = ?').run(crewId);
+    // Use dedicated clearCrewId to avoid null type hack
+    PlayerDB.clearCrewId(discordId);
+    getDB().prepare('UPDATE crews SET member_count = MAX(0, member_count - 1) WHERE id = ?').run(crewId);
   },
 
   update(id: string, data: Partial<Crew>): void {
+    if (Object.keys(data).length === 0) return;
     const sets = Object.keys(data).map(k => `${k} = ?`).join(', ');
     getDB().prepare(`UPDATE crews SET ${sets} WHERE id = ?`).run(...Object.values(data), id);
+  },
+
+  // Atomic increment for heist results — no read-modify-write race
+  recordHeistEarnings(crewId: string, earnings: number): void {
+    getDB().prepare(`
+      UPDATE crews SET total_heists = total_heists + 1, total_earnings = total_earnings + ? WHERE id = ?
+    `).run(earnings, crewId);
   },
 
   getLeaderboard(limit = 10): Crew[] {

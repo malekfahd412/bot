@@ -31,7 +31,7 @@ export class CrewSystem {
     if (!crew) throw new Error('Crew not found');
 
     const player = PlayerDB.findByDiscordId(discordId);
-    if (!player) throw new Error('Player not found');
+    if (!player) throw new Error('Player not found. Use any command first to register.');
     if (player.crew_id) throw new Error('You are already in a crew. Leave it first.');
 
     if (crew.member_count >= MAX_CREW_SIZE) throw new Error(`Crew is full (max ${MAX_CREW_SIZE} members)`);
@@ -64,11 +64,9 @@ export class CrewSystem {
     return this.getWithMembers(player.crew_id);
   }
 
+  // Atomic single-query update — no race condition
   static recordHeistResult(crewId: string, earnings: number): void {
-    CrewDB.update(crewId, {
-      total_heists: (CrewDB.findById(crewId)?.total_heists ?? 0) + 1,
-      total_earnings: (CrewDB.findById(crewId)?.total_earnings ?? 0) + earnings,
-    });
+    CrewDB.recordHeistEarnings(crewId, earnings);
   }
 
   static getLeaderboard(limit = 10): Crew[] {

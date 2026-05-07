@@ -1,7 +1,16 @@
 import { REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
-import { loadCommands } from './services/command-loader.js';
 import { logger } from './utils/logger.js';
+
+// Import slash command builders directly — avoids the execute() handler
+import { data as profile } from './commands/profile.js';
+import { data as daily } from './commands/daily.js';
+import { data as leaderboard } from './commands/leaderboard.js';
+import { data as stats } from './commands/stats.js';
+import { data as heistLog } from './commands/heist-log.js';
+import { data as crew } from './commands/crew.js';
+import { data as inventory } from './commands/inventory.js';
+import { data as admin } from './commands/admin.js';
 
 config();
 
@@ -14,8 +23,9 @@ if (!TOKEN || !CLIENT_ID) {
   process.exit(1);
 }
 
-const commands = loadCommands();
-const commandData = [...commands.values()].map(c => c.data.toJSON());
+const commandData = [
+  profile, daily, leaderboard, stats, heistLog, crew, inventory, admin,
+].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
@@ -24,18 +34,10 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
     logger.info(`Registering ${commandData.length} slash commands...`);
 
     if (GUILD_ID) {
-      // Guild-specific (instant, for testing)
-      await rest.put(
-        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-        { body: commandData }
-      );
+      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commandData });
       logger.success(`Registered ${commandData.length} commands to guild ${GUILD_ID}`);
     } else {
-      // Global (takes up to 1hr to propagate)
-      await rest.put(
-        Routes.applicationCommands(CLIENT_ID),
-        { body: commandData }
-      );
+      await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commandData });
       logger.success(`Registered ${commandData.length} global commands`);
     }
   } catch (err) {

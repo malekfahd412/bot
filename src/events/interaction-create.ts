@@ -1,11 +1,10 @@
 import {
-  Client, Events, Interaction, ChatInputCommandInteraction,
-  ButtonInteraction, ModalSubmitInteraction, EmbedBuilder, AttachmentBuilder
+  Events, Interaction, ChatInputCommandInteraction,
+  ModalSubmitInteraction, EmbedBuilder, AttachmentBuilder, Collection,
 } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { ApprovalSystem } from '../systems/approval.js';
 import { HeistSystem } from '../systems/heist.js';
-import { PlayerSystem } from '../systems/player.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
 import type { Difficulty } from '../utils/constants.js';
@@ -14,137 +13,163 @@ export const name = Events.InteractionCreate;
 export const once = false;
 
 type CommandModule = {
+  data: { name: string };
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
 };
 
 export async function execute(
   interaction: Interaction,
-  commands: Map<string, CommandModule>,
+  commands: Collection<string, CommandModule>,
   config: { reviewChannelId?: string; adminRoleId?: string }
 ): Promise<void> {
-  // --- Slash Commands ---
+
+  // ── Slash Commands ──────────────────────────────────────────────────────────
   if (interaction.isChatInputCommand()) {
     const command = commands.get(interaction.commandName);
     if (!command) {
-      logger.warn(`Unknown command: ${interaction.commandName}`);
+      logger.warn(`Unknown command: /${interaction.commandName}`);
       return;
     }
     try {
       await command.execute(interaction);
     } catch (err) {
-      logger.error(`Command error [${interaction.commandName}]:`, err);
-      const msg = { content: '❌ An error occurred while executing this command.', ephemeral: true };
+      logger.error(`Command /${interaction.commandName} threw:`, err);
+      const reply = { content: '❌ An error occurred. Please try again.', ephemeral: true };
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(msg);
+        await interaction.followUp(reply).catch(() => null);
       } else {
-        await interaction.reply(msg);
+        await interaction.reply(reply).catch(() => null);
       }
     }
     return;
   }
 
-  // --- Modal Submissions ---
+  // ── Modal Submissions ───────────────────────────────────────────────────────
   if (interaction.isModalSubmit()) {
     if (interaction.customId.startsWith('heist_modal:')) {
-      await handleHeistModal(interaction as ModalSubmitInteraction, config.reviewChannelId);
+      try {
+        await handleHeistModal(interaction as ModalSubmitInteraction, config.reviewChannelId);
+      } catch (err) {
+        logger.error('Modal handler error:', err);
+        const reply = { content: '❌ Failed to process your submission.', ephemeral: true };
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp(reply).catch(() => null);
+        } else {
+          await interaction.reply(reply).catch(() => null);
+        }
+      }
     }
     return;
   }
 
-  // --- Button Interactions ---
+  // ── Button Interactions ─────────────────────────────────────────────────────
   if (interaction.isButton()) {
-    const [action, submissionId] = interaction.customId.split(':');
+    const colonIdx = interaction.customId.indexOf(':');
+    if (colonIdx === -1) return;
 
-    if (action === 'heist_approve' || action === 'heist_reject') {
-      // Check admin role
+    const action = interaction.customId.slice(0, colonIdx);
+    const submissionId = interaction.customId.slice(colonIdx + 1);
+
+    if (action !== 'heist_approve' && action !== 'heist_reject') return;
+
+    // ── Role check ────────────────────────────────────────────────────────────
+    if (config.adminRoleId) {
       const member = interaction.member;
-      if (config.adminRoleId && member && 'roles' in member) {
+      if (member && 'roles' in member) {
         const roles = member.roles;
         const hasRole = 'cache' in roles
           ? roles.cache.has(config.adminRoleId)
           : (roles as string[]).includes(config.adminRoleId);
 
         if (!hasRole) {
-          await interaction.reply({ content: '❌ You need the staff role to review heist submissions.', ephemeral: true });
+          await interaction.reply({
+            content: '❌ You need the staff role to review heist submissions.',
+            ephemeral: true,
+          });
           return;
         }
       }
+    }
 
-      await interaction.deferReply();
+    // Defer a new reply so we can attach the canvas card
+    await interaction.deferReply();
 
+    try {
+      if (action === 'heist_approve') {
+        const result = await ApprovalSystem.approve(submissionId, interaction.user.id);
+        const { submission, xpAwarded, coinsAwarded, levelResults, skippedTeammates } = result;
+        const teammates = HeistSystem.getTeammates(submission);
+
+        // Canvas mission card
+        const buffer = await generateMissionCard(
+          submission.heist_name,
+          submission.difficulty as Difficulty,
+          `<@${submission.submitter_id}>`,
+          teammates.map(t => `<@${t}>`),
+          xpAwarded,
+          coinsAwarded,
+          true
+        );
+
+        const attachment = new AttachmentBuilder(buffer, { name: 'mission-result.png' });
+
+        // Build level-up notices
+        const levelUpLines = levelResults
+          .filter(r => r.leveledUp)
+          .map(r => `🎉 <@${r.discordId}> reached **Level ${r.newLevel}**${r.rankChanged ? ` — ranked up to **${r.newRank}**` : ''}!`);
+
+        const skipNote = skippedTeammates.length > 0
+          ? `\n⚠️ Could not reward ${skippedTeammates.length} participant(s) (data error).`
+          : '';
+
+        await interaction.editReply({
+          content: [
+            `✅ **Approved** by <@${interaction.user.id}>`,
+            `💰 **+${xpAwarded} XP** and **$${coinsAwarded.toLocaleString()}** distributed to **${levelResults.length}** participant(s).`,
+            ...levelUpLines,
+            skipNote,
+          ].filter(Boolean).join('\n'),
+          files: [attachment],
+        });
+
+      } else {
+        // Reject
+        const submission = ApprovalSystem.reject(submissionId, interaction.user.id);
+        const teammates = HeistSystem.getTeammates(submission);
+
+        const buffer = await generateMissionCard(
+          submission.heist_name,
+          submission.difficulty as Difficulty,
+          `<@${submission.submitter_id}>`,
+          teammates.map(t => `<@${t}>`),
+          0, 0, false
+        );
+
+        const attachment = new AttachmentBuilder(buffer, { name: 'mission-result.png' });
+
+        await interaction.editReply({
+          content: `❌ **Rejected** by <@${interaction.user.id}>`,
+          files: [attachment],
+        });
+      }
+
+      // Disable the Approve/Reject buttons on the original review embed
       try {
-        if (action === 'heist_approve') {
-          const result = await ApprovalSystem.approve(submissionId, interaction.user.id);
-          const submission = result.submission;
-          const teammates = HeistSystem.getTeammates(submission);
+        await interaction.message.edit({ components: [] });
+      } catch {
+        // Non-fatal — the message may have been deleted or we lack perms
+      }
 
-          const buffer = await generateMissionCard(
-            submission.heist_name,
-            submission.difficulty as Difficulty,
-            `<@${submission.submitter_id}>`,
-            teammates.map(t => `<@${t}>`),
-            result.xpAwarded,
-            result.coinsAwarded,
-            true
-          );
-
-          const attachment = new AttachmentBuilder(buffer, { name: 'mission-result.png' });
-          const levelUpNotices = result.levelResults
-            .filter(r => r.leveledUp)
-            .map(r => `🎉 <@${r.discordId}> leveled up to **Level ${r.newLevel}**${r.rankChanged ? ` and ranked up to **${r.newRank}**` : ''}!`)
-            .join('\n');
-
-          await interaction.editReply({
-            content: [
-              `✅ **Heist approved** by <@${interaction.user.id}>`,
-              `💰 Rewards distributed to **${1 + teammates.length}** participant(s).`,
-              levelUpNotices ? `\n${levelUpNotices}` : '',
-            ].filter(Boolean).join('\n'),
-            files: [attachment],
-          });
-
-          // Disable buttons on review message
-          try {
-            const originalMsg = await interaction.message.fetch();
-            await originalMsg.edit({ components: [] });
-          } catch { /* ignore */ }
-
-        } else {
-          const submission = ApprovalSystem.reject(submissionId, interaction.user.id);
-          const teammates = HeistSystem.getTeammates(submission);
-
-          const buffer = await generateMissionCard(
-            submission.heist_name,
-            submission.difficulty as Difficulty,
-            `<@${submission.submitter_id}>`,
-            teammates.map(t => `<@${t}>`),
-            0,
-            0,
-            false
-          );
-
-          const attachment = new AttachmentBuilder(buffer, { name: 'mission-result.png' });
-
-          await interaction.editReply({
-            content: `❌ **Heist rejected** by <@${interaction.user.id}>`,
-            files: [attachment],
-          });
-
-          try {
-            const originalMsg = await interaction.message.fetch();
-            await originalMsg.edit({ components: [] });
-          } catch { /* ignore */ }
-        }
-      } catch (err: unknown) {
-        logger.error('Approval/rejection failed:', err);
-        const errMsg = err instanceof Error ? err.message : 'Something went wrong.';
-        if (interaction.replied || interaction.deferred) {
-          await interaction.editReply(`❌ ${errMsg}`);
-        } else {
-          await interaction.reply({ content: `❌ ${errMsg}`, ephemeral: true });
-        }
+    } catch (err: unknown) {
+      logger.error('Button handler error:', err);
+      const msg = err instanceof Error ? err.message : 'Something went wrong.';
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply(`❌ ${msg}`).catch(() => null);
+      } else {
+        await interaction.reply({ content: `❌ ${msg}`, ephemeral: true }).catch(() => null);
       }
     }
+
     return;
   }
 }

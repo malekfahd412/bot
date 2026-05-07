@@ -2,9 +2,8 @@ import {
   makeCanvas, fillRoundedRect, strokeRoundedRect, drawXPBar,
   drawScanlines, drawGlowText, drawGrid, tryLoadImage, canvasToBuffer, applyVignette
 } from './renderer.js';
-import type { SKRSContext2D } from '@napi-rs/canvas';
 import { COLORS } from '../utils/constants.js';
-import { getRank, getLevelFromXP, getXPProgress, formatNumber, formatCoins, getSuccessRate } from '../utils/helpers.js';
+import { getRank, getXPProgress, formatNumber, formatCoins, getSuccessRate } from '../utils/helpers.js';
 import type { Player } from '../database/schema.js';
 
 const W = 800;
@@ -13,7 +12,7 @@ const H = 400;
 export async function generateProfileCard(player: Player, globalRank: number): Promise<Buffer> {
   const { canvas, ctx } = makeCanvas(W, H);
 
-  // --- Background ---
+  // Background gradient
   const bgGrad = ctx.createLinearGradient(0, 0, W, H);
   bgGrad.addColorStop(0, '#0A0A14');
   bgGrad.addColorStop(0.5, '#12121E');
@@ -23,23 +22,23 @@ export async function generateProfileCard(player: Player, globalRank: number): P
 
   drawGrid(ctx, 0, 0, W, H, 35);
 
-  // Accent stripe left
+  // Left accent stripe (gradient)
   const stripeGrad = ctx.createLinearGradient(0, 0, 0, H);
   stripeGrad.addColorStop(0, COLORS.primary);
   stripeGrad.addColorStop(1, COLORS.accent);
   ctx.fillStyle = stripeGrad;
   ctx.fillRect(0, 0, 4, H);
 
-  // --- Rank/level badge top right ---
+  // Rank/level badge — top right
   const rank = getRank(player.level);
-  fillRoundedRect(ctx, W - 180, 18, 162, 36, 8, 'rgba(200,169,81,0.12)');
-  strokeRoundedRect(ctx, W - 180, 18, 162, 36, 8, COLORS.primary, 1);
+  fillRoundedRect(ctx, W - 182, 18, 164, 36, 8, 'rgba(200,169,81,0.12)');
+  strokeRoundedRect(ctx, W - 182, 18, 164, 36, 8, COLORS.primary, 1);
   ctx.font = 'bold 13px Arial';
   ctx.fillStyle = COLORS.primary;
   ctx.textAlign = 'center';
-  ctx.fillText(`${rank.icon}  ${rank.name}`, W - 99, 42);
+  ctx.fillText(`${rank.icon}  ${rank.name}`, W - 100, 42);
 
-  // --- Avatar ---
+  // Avatar ring
   const avatarSize = 110;
   const avatarX = 30;
   const avatarY = 30;
@@ -58,19 +57,16 @@ export async function generateProfileCard(player: Player, globalRank: number): P
       ctx.beginPath();
       ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
       ctx.clip();
-      ctx.drawImage(avatar, avatarX, avatarY, avatarSize, avatarSize);
+      ctx.drawImage(avatar as import('@napi-rs/canvas').Image, avatarX, avatarY, avatarSize, avatarSize);
       ctx.restore();
+    } else {
+      drawAvatarPlaceholder(ctx, player.username, avatarX, avatarY, avatarSize);
     }
   } else {
-    // Placeholder
-    fillRoundedRect(ctx, avatarX, avatarY, avatarSize, avatarSize, avatarSize / 2, COLORS.surface);
-    ctx.font = 'bold 40px Arial';
-    ctx.fillStyle = COLORS.primary;
-    ctx.textAlign = 'center';
-    ctx.fillText(player.username.charAt(0).toUpperCase(), avatarX + avatarSize / 2, avatarY + avatarSize / 2 + 15);
+    drawAvatarPlaceholder(ctx, player.username, avatarX, avatarY, avatarSize);
   }
 
-  // --- Username & Global Rank ---
+  // Username
   ctx.textAlign = 'left';
   drawGlowText(ctx, player.username, 158, 72, '#FFFFFF', COLORS.primary, 28, 'bold');
 
@@ -78,7 +74,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
   ctx.fillStyle = COLORS.textMuted;
   ctx.fillText(`#${globalRank} GLOBAL  •  LVL ${player.level}`, 160, 100);
 
-  // --- XP Bar ---
+  // XP bar
   const xpProgress = getXPProgress(player.xp);
   const barX = 158;
   const barY = 112;
@@ -90,12 +86,12 @@ export async function generateProfileCard(player: Player, globalRank: number): P
   ctx.font = '11px Arial';
   ctx.fillStyle = COLORS.textMuted;
   ctx.textAlign = 'left';
-  ctx.fillText(`XP ${formatNumber(xpProgress.current)} / ${formatNumber(xpProgress.needed)}`, barX, barY + 28);
+  ctx.fillText(`XP  ${formatNumber(xpProgress.current)} / ${formatNumber(xpProgress.needed)}`, barX, barY + 28);
   ctx.textAlign = 'right';
   ctx.fillStyle = COLORS.primary;
   ctx.fillText(`${Math.round(xpProgress.percent * 100)}%`, barX + barW, barY + 28);
 
-  // --- Divider ---
+  // Divider
   ctx.strokeStyle = 'rgba(200,169,81,0.15)';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -103,12 +99,12 @@ export async function generateProfileCard(player: Player, globalRank: number): P
   ctx.lineTo(W - 20, 160);
   ctx.stroke();
 
-  // --- Stats Grid ---
+  // Stats grid
   const stats = [
     { label: 'COINS', value: formatCoins(player.coins), color: COLORS.gold },
     { label: 'TOTAL HEISTS', value: String(player.total_heists), color: '#FFFFFF' },
     { label: 'SUCCESS RATE', value: getSuccessRate(player.total_heists, player.successful_heists), color: COLORS.success },
-    { label: 'STREAK', value: `${player.streak_current}🔥`, color: COLORS.warning },
+    { label: 'STREAK', value: `${player.streak_current} \uD83D\uDD25`, color: COLORS.warning },
     { label: 'TOTAL EARNED', value: formatCoins(player.total_earnings), color: COLORS.gold },
     { label: 'HARDEST JOB', value: (player.hardest_heist ?? 'NONE').toUpperCase(), color: COLORS.accent },
   ];
@@ -137,15 +133,23 @@ export async function generateProfileCard(player: Player, globalRank: number): P
     ctx.fillText(stat.label, sx + statW / 2, sy + 58);
   });
 
-  // --- Footer bar ---
+  // Footer
   fillRoundedRect(ctx, 0, H - 28, W, 28, 0, 'rgba(200,169,81,0.07)');
   ctx.font = '11px Arial';
   ctx.fillStyle = 'rgba(200,169,81,0.4)';
   ctx.textAlign = 'center';
-  ctx.fillText('GTA HEIST RPG  •  CRIMINAL RECORD', W / 2, H - 10);
+  ctx.fillText('GTA HEIST RPG  \u2022  CRIMINAL RECORD', W / 2, H - 10);
 
   drawScanlines(ctx, W, H);
   applyVignette(ctx, W, H);
 
   return canvasToBuffer(canvas);
+}
+
+function drawAvatarPlaceholder(ctx: ReturnType<typeof makeCanvas>['ctx'], username: string, x: number, y: number, size: number): void {
+  fillRoundedRect(ctx, x, y, size, size, size / 2, '#1A1A2E');
+  ctx.font = 'bold 40px Arial';
+  ctx.fillStyle = COLORS.primary;
+  ctx.textAlign = 'center';
+  ctx.fillText(username.charAt(0).toUpperCase(), x + size / 2, y + size / 2 + 14);
 }

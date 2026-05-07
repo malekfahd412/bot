@@ -1,5 +1,5 @@
 import { PlayerDB, AchievementDB } from '../database/db.js';
-import { getRank, getLevelFromXP } from '../utils/helpers.js';
+import { getRank } from '../utils/helpers.js';
 import { logger } from '../utils/logger.js';
 import type { Player } from '../database/schema.js';
 
@@ -29,11 +29,11 @@ export class PlayerSystem {
     const rankChanged = newRank.name !== oldRank.name;
 
     if (leveledUp) {
-      logger.game(`Player ${discordId} leveled up to ${newLevel}`);
+      logger.game(`${player.username} (${discordId}) leveled up to ${newLevel}`);
     }
 
     if (rankChanged) {
-      logger.game(`Player ${discordId} ranked up to ${newRank.name}`);
+      logger.game(`${player.username} (${discordId}) ranked up to ${newRank.name}`);
       PlayerDB.update(discordId, { rank: newRank.name });
       this.checkRankAchievement(discordId, newRank.name);
     }
@@ -41,11 +41,32 @@ export class PlayerSystem {
     return { leveledUp, newLevel, newRank: rankChanged ? newRank.name : undefined, rankChanged };
   }
 
+  // Awards coins and tracks total_earnings atomically in a single SQL call
   static awardCoins(discordId: string, amount: number): void {
+    PlayerDB.addEarnings(discordId, amount);
+  }
+
+  // Admin-only: give coins without tracking as heist earnings
+  static giveCoins(discordId: string, amount: number): void {
     PlayerDB.addCoins(discordId, amount);
-    PlayerDB.update(discordId, {
-      total_earnings: (PlayerDB.findByDiscordId(discordId)?.total_earnings ?? 0) + amount,
-    });
+  }
+
+  // Admin-only: directly set XP and recalculate level/rank
+  static adminGiveXP(discordId: string, amount: number): LevelUpResult {
+    const player = PlayerDB.findByDiscordId(discordId);
+    if (!player) throw new Error('Player not found');
+    const oldRank = getRank(player.level);
+    PlayerDB.addXP(discordId, amount);
+    const updated = PlayerDB.findByDiscordId(discordId)!;
+    const newRank = getRank(updated.level);
+    const rankChanged = newRank.name !== oldRank.name;
+    if (rankChanged) PlayerDB.update(discordId, { rank: newRank.name });
+    return {
+      leveledUp: updated.level > player.level,
+      newLevel: updated.level,
+      rankChanged,
+      newRank: rankChanged ? newRank.name : undefined,
+    };
   }
 
   static recordHeistResult(discordId: string, success: boolean, difficulty: string, heistName: string): void {
@@ -64,12 +85,12 @@ export class PlayerSystem {
       if (difficultyRank.indexOf(difficulty) > difficultyRank.indexOf(currentHardest)) {
         updates.hardest_heist = difficulty;
       }
+      this.checkHeistAchievements(discordId, player.successful_heists + 1);
     } else {
       updates.failed_heists = player.failed_heists + 1;
     }
 
     PlayerDB.update(discordId, updates);
-    this.checkHeistAchievements(discordId, player.successful_heists + (success ? 1 : 0));
   }
 
   private static checkRankAchievement(discordId: string, rank: string): void {
@@ -81,8 +102,9 @@ export class PlayerSystem {
       KINGPIN: ['rank_kingpin', 'Kingpin', 'Reached the pinnacle — Kingpin', '💎'],
     };
 
-    if (rankAchievements[rank]) {
-      const [key, name, desc, icon] = rankAchievements[rank];
+    const entry = rankAchievements[rank];
+    if (entry) {
+      const [key, name, desc, icon] = entry;
       AchievementDB.unlock(discordId, key, name, desc, icon);
     }
   }
@@ -96,8 +118,9 @@ export class PlayerSystem {
       100: ['heist_100', 'Legend of the Streets', 'Completed 100 heists', '💎'],
     };
 
-    if (milestones[successfulHeists]) {
-      const [key, name, desc, icon] = milestones[successfulHeists];
+    const milestone = milestones[successfulHeists];
+    if (milestone) {
+      const [key, name, desc, icon] = milestone;
       AchievementDB.unlock(discordId, key, name, desc, icon);
     }
   }
