@@ -4,6 +4,7 @@ import * as daily from '../commands/daily.js';
 import * as leaderboard from '../commands/leaderboard.js';
 import * as stats from '../commands/stats.js';
 import * as heistLog from '../commands/heist-log.js';
+import * as playerinfo from '../commands/playerinfo.js';
 import * as crew from '../commands/crew.js';
 import * as inventory from '../commands/inventory.js';
 import * as admin from '../commands/admin.js';
@@ -23,10 +24,11 @@ export function loadCommands(): Collection<string, CommandModule> {
     leaderboard as unknown as CommandModule,
     stats as unknown as CommandModule,
     heistLog as unknown as CommandModule,
+    playerinfo as unknown as CommandModule,
     crew as unknown as CommandModule,
     inventory as unknown as CommandModule,
     admin as unknown as CommandModule,
-  ];
+];
 
   for (const mod of modules) {
     commands.set(mod.data.name, mod);
