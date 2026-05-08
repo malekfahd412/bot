@@ -4,10 +4,8 @@ import * as cheerio from "cheerio";
 export type RockstarProfile = {
   username: string;
   avatar?: string;
-  crewName?: string;
-  crewTag?: string;
-  country?: string;
   profileUrl: string;
+  rawHtml?: string;
 };
 
 export async function fetchRockstarProfile(username: string): Promise<RockstarProfile | null> {
@@ -17,34 +15,34 @@ export async function fetchRockstarProfile(username: string): Promise<RockstarPr
     const res = await axios.get(url, {
       headers: {
         "User-Agent": "Mozilla/5.0",
+        "Accept-Language": "en-US,en;q=0.9",
       },
     });
 
-    const $ = cheerio.load(res.data);
+    const html = res.data;
+    const $ = cheerio.load(html);
 
-    // OG meta tags (Rockstar بيعتمد عليها كتير)
+    // 🖼️ الصورة (أفضل مصدر)
     const avatar =
-      $('meta[property="og:image"]').attr("content") || undefined;
+      $('meta[property="og:image"]').attr("content") ||
+      $('img').first().attr("src");
 
-    const title =
-      $('meta[property="og:title"]').attr("content") || username;
+    // 🏷️ الاسم الحقيقي من الصفحة
+    const ogTitle =
+      $('meta[property="og:title"]').attr("content");
 
-    const description =
-      $('meta[property="og:description"]').attr("content") || "";
-
-    // محاولات بسيطة لاستخراج crew (مش مضمون 100%)
-    let crewName: string | undefined;
-
-    $("body").text().includes("Crew") && (crewName = undefined);
+    const cleanUsername =
+      ogTitle?.split(" | ")[0] || username;
 
     return {
-      username: title,
+      username: cleanUsername,
       avatar,
-      crewName,
       profileUrl: url,
+      rawHtml: html,
     };
+
   } catch (err) {
-    console.error("Rockstar fetch error:", err);
+    console.error("Rockstar scrape error:", err);
     return null;
   }
 }
