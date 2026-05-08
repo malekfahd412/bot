@@ -1,102 +1,69 @@
-import { createCanvas, loadImage } from 'canvas';
-import type { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { AttachmentBuilder } from 'discord.js';
+import { HeistDB, PlayerDB } from '../database/db.js';
+import { DIFFICULTY_CONFIG, type Difficulty } from '../utils/constants.js';
 import { logger } from '../utils/logger.js';
+import type { HeistSubmission } from '../database/schema.js';
 
-// ───────────────────────────────
-// EXPORT: data (fix deploy error)
-// ───────────────────────────────
-export const data = {
-  name: 'heist-log',
-  description: 'Generate heist result image',
-};
-
-// ───────────────────────────────
-// INTERFACE
-// ───────────────────────────────
-export interface HeistResult {
-  success: boolean;
-  xp: number;
-  coins: number;
-  crewName: string;
-  members: number;
-  missionName: string;
+export interface HeistSubmitData {
+  submitterId: string;
+  heistName: string;
+  difficulty: Difficulty;
+  teammates: string[];
+  proofUrl: string;
+  notes?: string;
+  submissionChannelId?: string;
 }
 
-// ───────────────────────────────
-// MAIN GENERATOR
-// ───────────────────────────────
-export async function generateHeistLog(result: HeistResult) {
-  const canvas = createCanvas(900, 500);
-  const ctx = canvas.getContext('2d');
+export class HeistSystem {
+  static submit(data: HeistSubmitData): HeistSubmission {
+    const submission = HeistDB.create({
+      submitter_id: data.submitterId,
+      heist_name: data.heistName,
+      difficulty: data.difficulty,
+      teammates: JSON.stringify(data.teammates),
+      proof_url: data.proofUrl,
+      notes: data.notes ?? null,
+      submission_channel_id: data.submissionChannelId ?? null,
+    });
 
-  const bgPath = result.success
-    ? './assets/heist-success.png'
-    : './assets/heist-fail.png';
-
-  try {
-    const bg = await loadImage(bgPath);
-    ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
-  } catch {
-    ctx.fillStyle = result.success ? '#0f1f14' : '#1f0f0f';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    logger.game(`Heist submission created: ${submission.id} by ${data.submitterId}`);
+    return submission;
   }
 
-  // overlay
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  static getPendingSubmissions(): HeistSubmission[] {
+    return HeistDB.findPending();
+  }
 
-  // title
-  ctx.font = 'bold 42px Arial';
-  ctx.fillStyle = result.success ? '#00ff88' : '#ff3b3b';
-  ctx.fillText(result.success ? 'MISSION SUCCESS' : 'MISSION FAILED', 40, 80);
+  static getSubmission(id: string): HeistSubmission | undefined {
+    return HeistDB.findById(id);
+  }
 
-  // mission
-  ctx.font = '20px Arial';
-  ctx.fillStyle = '#fff';
-  ctx.fillText(`Mission: ${result.missionName}`, 40, 130);
+  static getPlayerHistory(discordId: string, limit = 10): HeistSubmission[] {
+    return HeistDB.getPlayerHistory(discordId, limit);
+  }
 
-  ctx.fillStyle = '#ccc';
-  ctx.fillText(`Crew: ${result.crewName}`, 40, 170);
-  ctx.fillText(`Members: ${result.members}`, 40, 200);
+  static calculateRewards(difficulty: Difficulty): { xp: number; coins: number } {
+    const config = DIFFICULTY_CONFIG[difficulty];
+    const xpVariance = Math.floor(Math.random() * 50) - 25;
+    const coinVariance = Math.floor(Math.random() * 200) - 100;
+    return {
+      xp: Math.max(config.xp + xpVariance, 10),
+      coins: Math.max(config.coins + coinVariance, 100),
+    };
+  }
 
-  // rewards box
-  drawBox(ctx, 40, 240, 350, 180, result.success);
+  static getTeammates(submission: HeistSubmission): string[] {
+    try {
+      return JSON.parse(submission.teammates) as string[];
+    } catch {
+      return [];
+    }
+  }
 
-  ctx.font = 'bold 26px Arial';
-  ctx.fillStyle = '#ffd166';
-  ctx.fillText(`+${result.xp} XP`, 60, 300);
+  static setReviewMessage(id: string, messageId: string): void {
+    HeistDB.setReviewMessageId(id, messageId);
+  }
 
-  ctx.fillStyle = '#00e5ff';
-  ctx.fillText(`+$${result.coins}`, 60, 350);
-
-  return canvas.toBuffer();
+  static getDifficultyConfig(difficulty: Difficulty) {
+    return DIFFICULTY_CONFIG[difficulty];
+  }
 }
-
-// ───────────────────────────────
-// HELPERS
-// ───────────────────────────────
-function drawBox(ctx: any, x: number, y: number, w: number, h: number, success: boolean) {
-  ctx.fillStyle = success ? 'rgba(0,255,100,0.08)' : 'rgba(255,0,0,0.08)';
-  ctx.strokeStyle = success ? '#00ff88' : '#ff3b3b';
-  ctx.lineWidth = 2;
-
-  ctx.beginPath();
-  ctx.roundRect?.(x, y, w, h, 12) ?? ctx.rect(x, y, w, h);
-  ctx.fill();
-  ctx.stroke();
-}
-
-// ───────────────────────────────
-// REQUIRED EXPORTS (fix errors)
-/// ───────────────────────────────
-export async function handleHeistModal() {
-  // placeholder (عشان الـ import ما يكسرش build)
-  return;
-}
-
-export default {
-  data,
-  generateHeistLog,
-  handleHeistModal,
-};
