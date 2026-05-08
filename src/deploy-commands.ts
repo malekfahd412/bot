@@ -1,6 +1,16 @@
-import { REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
 import { logger } from './utils/logger.js';
+
+// Import slash command builders directly — avoids the execute() handler
+import { data as profile } from './commands/profile.js';
+import { data as daily } from './commands/daily.js';
+import { data as leaderboard } from './commands/leaderboard.js';
+import { data as stats } from './commands/stats.js';
+import { data as heistLog } from './commands/heist-log.js';
+import { data as crew } from './commands/crew.js';
+import { data as inventory } from './commands/inventory.js';
+import { data as admin } from './commands/admin.js';
 
 config();
 
@@ -13,71 +23,25 @@ if (!TOKEN || !CLIENT_ID) {
   process.exit(1);
 }
 
-// ─────────────────────────────────────────────
-// Import commands
-// ─────────────────────────────────────────────
-import { data as profile } from './commands/profile.js';
-import { data as daily } from './commands/daily.js';
-import { data as leaderboard } from './commands/leaderboard.js';
-import { data as stats } from './commands/stats.js';
-import { data as heistLog } from './commands/heist-log.js';
-import { data as crew } from './commands/crew.js';
-import { data as inventory } from './commands/inventory.js';
-import { data as admin } from './commands/admin.js';
+const commandData = [
+  profile, daily, leaderboard, stats, heistLog, crew, inventory, admin,
+].map(cmd => cmd.toJSON());
 
-// ─────────────────────────────────────────────
-// FIX: normalize commands safely
-// ─────────────────────────────────────────────
-const commands = [
-  profile,
-  daily,
-  leaderboard,
-  stats,
-  heistLog,
-  crew,
-  inventory,
-  admin,
-];
-
-// ensure proper SlashCommandBuilder format
-const commandData = commands.map((cmd) => {
-  if (cmd instanceof SlashCommandBuilder) {
-    return cmd.toJSON();
-  }
-
-  // fallback safety (prevents runtime crash)
-  return (cmd as any).toJSON?.() ?? cmd;
-});
-
-// ─────────────────────────────────────────────
-// REST setup
-// ─────────────────────────────────────────────
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-// ─────────────────────────────────────────────
-// Deploy
-// ─────────────────────────────────────────────
 (async () => {
   try {
-    logger.info(`🔄 Registering ${commandData.length} slash commands...`);
+    logger.info(`Registering ${commandData.length} slash commands...`);
 
     if (GUILD_ID) {
-      await rest.put(
-        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-        { body: commandData }
-      );
-
-      logger.success(`✅ Registered ${commandData.length} commands to guild`);
+      await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commandData });
+      logger.success(`Registered ${commandData.length} commands to guild ${GUILD_ID}`);
     } else {
-      await rest.put(
-        Routes.applicationCommands(CLIENT_ID),
-        { body: commandData }
-      );
-
-      logger.success(`🌍 Registered ${commandData.length} global commands`);
+      await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commandData });
+      logger.success(`Registered ${commandData.length} global commands`);
     }
   } catch (err) {
-    logger.error('❌ Failed to register commands:', err);
+    logger.error('Failed to register commands:', err);
     process.exit(1);
   }
 })();
