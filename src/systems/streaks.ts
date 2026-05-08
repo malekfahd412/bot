@@ -55,6 +55,6 @@ export class StreakSystem {
   }
 
   static getNextMilestone(streak: number): number | null {
-    return STREAK_MILESTONES.find(m => m > streak) ?? null;
+    return STREAK_MILESTONES.find((m: number) => m > streak) ?? null;
   }
 }
