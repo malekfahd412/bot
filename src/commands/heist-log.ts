@@ -1,12 +1,14 @@
-import { createCanvas, loadImage } from 'canvas';
+import { SlashCommandBuilder } from 'discord.js';
 
-interface HeistResult {
-  success: boolean;
-  xp: number;
-  coins: number;
-  crewName: string;
-  members: number;
-  missionName: string;
+export const data = new SlashCommandBuilder()
+  .setName('heist-log')
+  .setDescription('Generate heist log card');
+
+export async function execute(interaction: any) {
+  await interaction.reply({
+    content: 'Generating heist log...',
+    ephemeral: true,
+  });
 }
 
 export async function generateHeistLog(result: HeistResult) {
