@@ -75,14 +75,13 @@ export async function execute(
     const member = interaction.member;
 
     const isAdmin =
-      member &&
-      typeof member.permissions !== 'string' &&
-      member.permissions.has(PermissionFlagsBits.Administrator);
+    interaction.inGuild() &&
+    interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
 
     if (!isAdmin) {
-      return interaction.reply({
-        content: '🚫 Only Administrators can review heist submissions.',
-        ephemeral: true,
+    return interaction.reply({
+    content: '🚫 Only Administrators can review heists.',
+    ephemeral: true,
       });
     }
 
