@@ -5,56 +5,43 @@ export const COLORS = {
   success: '#00D26A',
   danger: '#FF4757',
   warning: '#FFA502',
-  background: '#0D0D1A',
-  surface: '#16213E',
-  surfaceAlt: '#1A1A2E',
+  background: '#0B0F1A',
+  surface: '#141824',
+  surfaceAlt: '#1A1F2E',
   text: '#FFFFFF',
-  textMuted: '#8B8FA8',
+  textMuted: '#9CA3AF',
   gold: '#FFD700',
-  platinum: '#E5E4E2',
-  xpBar: '#C8A951',
-  xpBarBg: '#2A2A3E',
+  xpBar: '#00D26A',
+  xpBarBg: '#2A2F45',
 } as const;
 
 export const DIFFICULTY_CONFIG = {
   easy: {
     label: 'EASY',
-    xp: 100,
-    coins: 500,
+    xp: 150,
+    coins: 1200,
     color: '#00D26A',
     multiplier: 1.0,
   },
-  medium: {
-    label: 'MEDIUM',
-    xp: 250,
-    coins: 1250,
+
+  normal: {
+    label: 'NORMAL',
+    xp: 350,
+    coins: 3000,
     color: '#FFA502',
     multiplier: 1.5,
   },
+
   hard: {
     label: 'HARD',
-    xp: 500,
-    coins: 2500,
+    xp: 700,
+    coins: 6500,
     color: '#FF4757',
-    multiplier: 2.0,
-  },
-  extreme: {
-    label: 'EXTREME',
-    xp: 1000,
-    coins: 5000,
-    color: '#9B59B6',
-    multiplier: 3.0,
-  },
-  legendary: {
-    label: 'LEGENDARY',
-    xp: 2000,
-    coins: 10000,
-    color: '#FFD700',
-    multiplier: 5.0,
+    multiplier: 2.2,
   },
 } as const;
 
-export type Difficulty = keyof typeof DIFFICULTY_CONFIG;
+export type Difficulty = keyof typeof DIFFICYLTY_CONFIG;
 
 export const RANK_THRESHOLDS = [
   { name: 'CIVILIAN', minLevel: 1, color: '#8B8FA8', icon: '👤' },
@@ -73,13 +60,7 @@ export const XP_PER_LEVEL = 500;
 export const DAILY_REWARD = {
   xp: 50,
   coins: 250,
-  streakBonus: {
-    xp: 25,
-    coins: 125,
-  },
 };
-
-export const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100];
 
 export const MAX_CREW_SIZE = 10;
 export const MAX_HEIST_TEAMMATES = 4;
