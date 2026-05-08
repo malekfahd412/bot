@@ -41,7 +41,7 @@ export const DIFFICULTY_CONFIG = {
   },
 } as const;
 
-export type Difficulty = keyof typeof DIFFICYLTY_CONFIG;
+export type Difficulty = keyof typeof DIFFICULTY_CONFIG;
 
 export const RANK_THRESHOLDS = [
   { name: 'CIVILIAN', minLevel: 1, color: '#8B8FA8', icon: '👤' },
