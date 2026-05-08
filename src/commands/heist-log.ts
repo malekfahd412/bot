@@ -1,121 +1,190 @@
-import { SlashCommandBuilder } from 'discord.js';
+import {
+  ChatInputCommandInteraction, SlashCommandBuilder,
+  ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder,
+  EmbedBuilder, ButtonBuilder, ButtonStyle,
+  ModalSubmitInteraction, TextChannel, Guild,
+} from 'discord.js';
+import { PlayerSystem } from '../systems/player.js';
+import { HeistSystem } from '../systems/heist.js';
+import { DIFFICULTY_CONFIG, type Difficulty } from '../utils/constants.js';
+import { formatNumber } from '../utils/helpers.js';
+import { logger } from '../utils/logger.js';
 
 export const data = new SlashCommandBuilder()
   .setName('heist-log')
-  .setDescription('Generate heist log card');
-
-export async function execute(interaction: any) {
-  await interaction.reply({
-    content: 'Generating heist log...',
-    ephemeral: true,
-  });
-}
-
-export async function generateHeistLog(result: HeistResult) {
-  const canvas = createCanvas(900, 500);
-  const ctx = canvas.getContext('2d');
-
-  // ── Background ─────────────────────────────
-  const bgPath = result.success
-    ? './assets/heist-success.png'
-    : './assets/heist-fail.png';
-
-  let bg;
-  try {
-    bg = await loadImage(bgPath);
-  } catch (e) {
-    // fallback لو الصورة مش موجودة
-    bg = await loadImage('./assets/default-bg.png');
-  }
-
-  ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
-
-  // ── Overlay ───────────────────────────────
-  ctx.fillStyle = result.success
-    ? 'rgba(0, 0, 0, 0.55)'
-    : 'rgba(0, 0, 0, 0.70)';
-
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // ── Title ──────────────────────────────────
-  ctx.font = 'bold 42px Arial';
-  const color = result.success ? '#00ff88' : '#ff3b3b';
-
-  ctx.fillStyle = color;
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 25;
-
-  ctx.fillText(
-    result.success ? 'MISSION SUCCESS' : 'MISSION FAILED',
-    40,
-    80
+  .setDescription('Submit a completed heist for staff review and rewards')
+  .addStringOption(opt =>
+    opt.setName('difficulty')
+      .setDescription('Difficulty of the heist')
+      .setRequired(true)
+      .addChoices(
+        { name: '🟢 Easy', value: 'easy' },
+        { name: '🟡 Medium', value: 'medium' },
+        { name: '🔴 Hard', value: 'hard' },
+      )
   );
 
-  ctx.shadowBlur = 0;
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  const difficulty = interaction.options.getString('difficulty', true) as Difficulty;
+  const diffConfig = DIFFICULTY_CONFIG[difficulty];
 
-  // ── Info ───────────────────────────────────
-  ctx.font = '20px Arial';
-  ctx.fillStyle = '#ffffff';
+  const modal = new ModalBuilder()
+    .setCustomId(`heist_modal:${difficulty}`)
+    .setTitle(`Heist Log — ${diffConfig.label}`);
 
-  ctx.fillText(`Mission: ${result.missionName}`, 40, 120);
-  ctx.fillText(`Crew: ${result.crewName}`, 40, 150);
-  ctx.fillText(`Members: ${result.members}`, 40, 180);
+  modal.addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId('heist_name')
+        .setLabel('Heist Name')
+        .setPlaceholder('e.g. The Cayo Perico Job, Diamond Casino Heist')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setMaxLength(64)
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId('teammates')
+        .setLabel('Teammates (mention up to 4, or leave blank)')
+        .setPlaceholder('@user1 @user2 @user3')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(false)
+        .setMaxLength(200)
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId('proof_url')
+        .setLabel('Proof URL (image/video link)')
+        .setPlaceholder('https://imgur.com/... or https://streamable.com/...')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setMaxLength(500)
+    ),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId('notes')
+        .setLabel('Notes (optional)')
+        .setPlaceholder('Any additional context about the heist...')
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
+        .setMaxLength(500)
+    ),
+  );
 
-  // ── Rewards Box ────────────────────────────
-  drawBox(ctx, 40, 230, 350, 180, result.success);
-
-  ctx.font = 'bold 28px Arial';
-
-  ctx.fillStyle = '#ffd166';
-  ctx.fillText(`+${result.xp} XP`, 60, 280);
-
-  ctx.fillStyle = '#00e5ff';
-  ctx.fillText(`+$${result.coins}`, 60, 330);
-
-  // ── Glow ───────────────────────────────────
-  drawGlow(ctx, 750, 120, color);
-
-  return canvas.toBuffer();
+  await interaction.showModal(modal);
 }
 
-// ── BOX ──────────────────────────────────────
-function drawBox(ctx: any, x: number, y: number, w: number, h: number, success: boolean) {
-  ctx.fillStyle = success
-    ? 'rgba(0,255,100,0.08)'
-    : 'rgba(255,0,0,0.08)';
+export async function handleHeistModal(
+  interaction: ModalSubmitInteraction,
+  reviewChannelId: string | undefined
+): Promise<void> {
+  await interaction.deferReply({ ephemeral: true });
 
-  ctx.strokeStyle = success ? '#00ff88' : '#ff3b3b';
-  ctx.lineWidth = 2;
+  const [, difficulty] = interaction.customId.split(':') as [string, Difficulty];
+  const heistName = interaction.fields.getTextInputValue('heist_name').trim();
+  const teammatesRaw = interaction.fields.getTextInputValue('teammates').trim();
+  const proofUrl = interaction.fields.getTextInputValue('proof_url').trim();
+  const notes = interaction.fields.getTextInputValue('notes').trim();
 
-  roundRect(ctx, x, y, w, h, 12);
-  ctx.fill();
-  ctx.stroke();
+  const user = interaction.user;
+  const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
+  PlayerSystem.getOrCreate(user.id, user.username, avatarUrl);
+
+  // Parse teammate mentions
+  const teammates = teammatesRaw
+    ? [...teammatesRaw.matchAll(/<@!?(\d+)>/g)].map(m => m[1]).filter(id => id !== user.id).slice(0, 4)
+    : [];
+
+  const diffConfig = DIFFICULTY_CONFIG[difficulty];
+  const estimatedRewards = HeistSystem.calculateRewards(difficulty);
+
+  try {
+    const submission = HeistSystem.submit({
+      submitterId: user.id,
+      heistName,
+      difficulty,
+      teammates,
+      proofUrl,
+      notes: notes || undefined,
+      submissionChannelId: interaction.channelId ?? undefined,
+    });
+
+    // Post to the staff review channel
+    if (reviewChannelId && interaction.guild) {
+      try {
+        const reviewChannel = await fetchTextChannel(interaction.guild, reviewChannelId);
+
+        if (reviewChannel) {
+          const reviewEmbed = new EmbedBuilder()
+            .setColor(0xC8A951)
+            .setTitle(`HEIST SUBMISSION — ${heistName.toUpperCase()}`)
+            .setDescription(
+              `**Difficulty:** ${diffConfig.label}\n` +
+              `**Submitted by:** <@${user.id}>\n` +
+              `**Teammates:** ${teammates.length > 0 ? teammates.map(t => `<@${t}>`).join(', ') : 'Solo'}`
+            )
+            .addFields(
+              { name: 'Proof', value: `[Click to view](${proofUrl})`, inline: true },
+              { name: 'Est. XP', value: `~${formatNumber(estimatedRewards.xp)}`, inline: true },
+              { name: 'Est. Coins', value: `~$${formatNumber(estimatedRewards.coins)}`, inline: true },
+              ...(notes ? [{ name: 'Notes', value: notes }] : []),
+            )
+            .setThumbnail(user.displayAvatarURL())
+            .setFooter({ text: `Submission ID: ${submission.id}` })
+            .setTimestamp();
+
+          const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`heist_approve:${submission.id}`)
+              .setLabel('APPROVE')
+              .setEmoji('✅')
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId(`heist_reject:${submission.id}`)
+              .setLabel('REJECT')
+              .setEmoji('❌')
+              .setStyle(ButtonStyle.Danger),
+          );
+
+          const reviewMsg = await reviewChannel.send({ embeds: [reviewEmbed], components: [row] });
+          HeistSystem.setReviewMessage(submission.id, reviewMsg.id);
+          logger.game(`Review embed posted to #${reviewChannel.name} for submission ${submission.id}`);
+        } else {
+          logger.warn(`Review channel ${reviewChannelId} not found or not a text channel`);
+        }
+      } catch (channelErr) {
+        logger.warn(`Could not post to review channel: ${String(channelErr)}`);
+      }
+    }
+
+    await interaction.editReply({
+      content: [
+        `✅ **Heist submitted successfully!** Stand by for staff review.`,
+        ``,
+        `> **${heistName}** — ${diffConfig.label}`,
+        `> Proof attached. Rewards distributed on approval.`,
+        `> Submission ID: \`${submission.id}\``,
+      ].join('\n'),
+    });
+
+    logger.game(`Heist submitted by ${user.username}: "${heistName}" (${difficulty})`);
+  } catch (err) {
+    logger.error('Heist submission failed:', err);
+    await interaction.editReply('❌ Failed to submit heist. Please try again.');
+  }
 }
 
-// ── GLOW ─────────────────────────────────────
-function drawGlow(ctx: any, x: number, y: number, color: string) {
-  const gradient = ctx.createRadialGradient(x, y, 10, x, y, 80);
+async function fetchTextChannel(guild: Guild, channelId: string): Promise<TextChannel | null> {
+  try {
+    // Check cache first, then fetch from API
+    const cached = guild.channels.cache.get(channelId);
+    if (cached?.isTextBased()) return cached as TextChannel;
 
-  gradient.addColorStop(0, color);
-  gradient.addColorStop(1, 'transparent');
+    const fetched = await guild.channels.fetch(channelId);
+    if (fetched?.isTextBased()) return fetched as TextChannel;
 
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(x, y, 80, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-// ── ROUND RECT ───────────────────────────────
-function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+    return null;
+  } catch {
+    return null;
+  }
 }
