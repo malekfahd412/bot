@@ -58,6 +58,7 @@ export const RANK_THRESHOLDS = [
 export const XP_PER_LEVEL = 500;
 
 export const DAILY_REWARD = {
+export const STREAK_MILESTONES: number[] = [3, 7, 14, 30, 60, 100];
   xp: 50,
   coins: 250,
 };
