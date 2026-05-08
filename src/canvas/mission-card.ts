@@ -1,4 +1,4 @@
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { createCanvas } from '@napi-rs/canvas';
 import { Difficulty } from '../utils/constants.js';
 
 export async function generateMissionCard(
@@ -11,97 +11,122 @@ export async function generateMissionCard(
   approved: boolean
 ): Promise<Buffer> {
 
-  const canvas = createCanvas(1200, 700);
+  const canvas = createCanvas(1400, 800);
   const ctx = canvas.getContext('2d');
 
-  // ── Background ─────────────────────────
-  ctx.fillStyle = '#0b0f1a';
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 1400, 800);
+  bg.addColorStop(0, '#090B10');
+  bg.addColorStop(1, '#111827');
+
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Gradient overlay (GTA neon vibe)
-  const gradient = ctx.createLinearGradient(0, 0, 1200, 700);
-  gradient.addColorStop(0, 'rgba(255, 0, 128, 0.25)');
-  gradient.addColorStop(1, 'rgba(0, 255, 255, 0.15)');
-  ctx.fillStyle = gradient;
+  // Glow
+  ctx.fillStyle = approved
+    ? 'rgba(0,255,140,0.12)'
+    : 'rgba(255,50,50,0.12)';
+
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // ── Header ─────────────────────────────
+  // Top line
   ctx.fillStyle = approved ? '#00ff88' : '#ff3b3b';
-  ctx.font = 'bold 40px Arial';
-  ctx.fillText(approved ? 'MISSION APPROVED' : 'MISSION REJECTED', 50, 80);
+  ctx.fillRect(0, 0, 1400, 8);
 
-  // ── Heist Name ─────────────────────────
+  // Title
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 32px Arial';
-  ctx.fillText(heistName.toUpperCase(), 50, 140);
+  ctx.font = 'bold 54px Arial';
+  ctx.fillText(
+    approved ? 'MISSION APPROVED' : 'MISSION REJECTED',
+    60,
+    90
+  );
 
-  // ── Submitter ──────────────────────────
-  ctx.font = '24px Arial';
-  ctx.fillStyle = '#a0a0a0';
-  ctx.fillText(`Submitted by: ${submitter}`, 50, 190);
+  // Heist name
+  ctx.fillStyle = '#d1d5db';
+  ctx.font = 'bold 38px Arial';
+  ctx.fillText(heistName.toUpperCase(), 60, 160);
 
-  // ── Difficulty Badge ───────────────────
+  // Difficulty
   const diffColor =
-    difficulty === 'easy' ? '#00ff88' :
-    difficulty === 'medium' ? '#ffd000' :
-    difficulty === 'hard' ? '#ff7b00' :
-    difficulty === 'extreme' ? '#ff3b3b' :
-    '#b300ff';
+    difficulty === 'easy'
+      ? '#00ff88'
+      : difficulty === 'normal'
+      ? '#ffd000'
+      : '#ff3b3b';
 
   ctx.fillStyle = diffColor;
-  ctx.fillRect(50, 220, 200, 50);
-
-  ctx.fillStyle = '#000';
-  ctx.font = 'bold 22px Arial';
-  ctx.fillText(difficulty.toUpperCase(), 70, 252);
-
-  // ── Crew Section ───────────────────────
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 28px Arial';
-  ctx.fillText('CREW', 50, 330);
-
-  ctx.font = '22px Arial';
-  let y = 370;
-
-  if (teammates.length === 0) {
-    ctx.fillStyle = '#888';
-    ctx.fillText('Solo Operation', 50, y);
-  } else {
-    teammates.forEach((member, i) => {
-      ctx.fillStyle = '#00d9ff';
-      ctx.fillText(`• ${member}`, 50, y + i * 35);
-    });
-  }
-
-  // ── Rewards Section ────────────────────
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 28px Arial';
-  ctx.fillText('REWARDS', 600, 330);
-
-  ctx.font = '24px Arial';
-  ctx.fillStyle = '#00ff88';
-  ctx.fillText(`XP: +${xp}`, 600, 380);
-
-  ctx.fillStyle = '#ffd700';
-  ctx.fillText(`COINS: $${coins.toLocaleString()}`, 600, 420);
-
-  // ── Rank Icon (simple badge) ───────────
-  ctx.fillStyle = '#ff00ff';
-  ctx.beginPath();
-  ctx.arc(1050, 120, 60, 0, Math.PI * 2);
+  ctx.roundRect(60, 200, 220, 60, 16);
   ctx.fill();
 
   ctx.fillStyle = '#000';
   ctx.font = 'bold 28px Arial';
-  ctx.fillText('RANK', 1015, 125);
+  ctx.fillText(difficulty.toUpperCase(), 100, 240);
 
-  // ── Footer Glow ────────────────────────
-  ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
-  ctx.fillRect(0, 650, 1200, 50);
+  // Crew panel
+  ctx.fillStyle = '#121826';
+  ctx.roundRect(60, 310, 550, 360, 20);
+  ctx.fill();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 32px Arial';
+  ctx.fillText('CREW MEMBERS', 90, 360);
+
+  ctx.font = '26px Arial';
+
+  let y = 420;
+
+  const allCrew = [submitter, ...teammates];
+
+  allCrew.forEach((member, index) => {
+    ctx.fillStyle = index === 0 ? '#00d9ff' : '#ffffff';
+
+    const cleanName = member
+      .replace(/[<@!>]/g, '')
+      .replace(/\s+/g, '');
+
+    ctx.fillText(`◆ PLAYER ${index + 1}: ${cleanName}`, 90, y);
+
+    y += 50;
+  });
+
+  // Rewards panel
+  ctx.fillStyle = '#121826';
+  ctx.roundRect(760, 310, 560, 260, 20);
+  ctx.fill();
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = '18px Arial';
-  ctx.fillText('GTA HEIST SYSTEM • CONFIDENTIAL', 50, 680);
+  ctx.font = 'bold 34px Arial';
+  ctx.fillText('MISSION REWARDS', 800, 370);
+
+  ctx.fillStyle = '#00ff88';
+  ctx.font = 'bold 40px Arial';
+  ctx.fillText(`+${xp} XP`, 820, 450);
+
+  ctx.fillStyle = '#FFD700';
+  ctx.fillText(`$${coins.toLocaleString()}`, 820, 520);
+
+  // GTA badge
+  ctx.fillStyle = '#C8A951';
+  ctx.beginPath();
+  ctx.arc(1180, 120, 70, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#000';
+  ctx.font = 'bold 30px Arial';
+  ctx.fillText('GTA', 1145, 130);
+
+  // Footer
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(0, 760, 1400, 40);
+
+  ctx.fillStyle = '#9ca3af';
+  ctx.font = '20px Arial';
+  ctx.fillText(
+    'LOS SANTOS HEIST NETWORK • SECURED TRANSMISSION',
+    50,
+    786
+  );
 
   return canvas.toBuffer('image/png');
 }
