@@ -1,85 +1,41 @@
-import {
-  ChatInputCommandInteraction,
-  SlashCommandBuilder,
-  EmbedBuilder,
-} from 'discord.js';
+import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import { fetchRockstarProfile } from "../services/rockstar-profile.js";
 
 export const data = new SlashCommandBuilder()
-  .setName('playerinfo')
-  .setDescription('Show Rockstar profile info')
+  .setName("playerinfo")
+  .setDescription("Fetch Rockstar profile")
   .addStringOption(opt =>
-    opt
-      .setName('username')
-      .setDescription('Rockstar username')
+    opt.setName("username")
+      .setDescription("Rockstar username")
       .setRequired(true)
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
+  const username = interaction.options.getString("username", true);
 
-  const username = interaction.options.getString('username', true);
+  await interaction.deferReply();
 
-  // مثال داتا مؤقتة
-  // بعدين تربطها بـ API حقيقي
-  const player = {
-    username: username,
-    rid: '260174764',
-    country: '🇪🇬 EG',
-    friends: 58,
-    hidden: 'No',
+  const data = await fetchRockstarProfile(username);
 
-    crewName: 'Red Dead Rustlers',
-    crewTag: 'RDR',
-    crewMotto: 'Be quick on the draw, or deal with the consequences.',
-    crewMembers: '1268102',
-    division: '101-1000',
-
-    game: 'GTAV',
-    platform: 'PC',
-    date: 'Tue, 05 May 2026 21:00:00 UTC',
-  };
-
-  const profileUrl =
-    `https://socialclub.rockstargames.com/member/${encodeURIComponent(username)}`;
+  if (!data) {
+    return interaction.editReply("❌ Player not found or profile is private.");
+  }
 
   const embed = new EmbedBuilder()
     .setColor(0xC8A951)
-
-    // 👇 الاسم يبقى لينك
-    .setTitle(`🎮 ${player.username}`)
-    .setURL(profileUrl)
-
+    .setTitle(`🎮 ${data.username}`)
+    .setURL(data.profileUrl)
+    .setThumbnail(data.avatar || null)
     .setDescription(
-`👤 **Player Info**
-**Username:** ${player.username}
-**RID:** ${player.rid}
-**Country:** ${player.country}
-**Friends:** ${player.friends}
-**Profile Hidden:** ${player.hidden}
+`👤 **Rockstar Profile**
+Username: ${data.username}
 
 👥 **Crew**
-**Name:** ${player.crewName}
-**Tag:** [${player.crewTag}]
-**Motto:** ${player.crewMotto}
-**Members:** ${player.crewMembers}
-**Division:** ${player.division}
+${data.crewName ? data.crewName : "No crew data available"}
 
-🕒 **Last Seen**
-**Game:** ${player.game}
-**Platform:** ${player.platform}
-**Date:** ${player.date}
-
-🔗 **Linked**
-Google
-Discord`
+🔗 [Open Profile](${data.profileUrl})`
     )
+    .setFooter({ text: "Rockstar Social Club Viewer" });
 
-    .setFooter({
-      text: 'Rockstar Social Club'
-    })
-
-    .setTimestamp();
-
-  await interaction.reply({
-    embeds: [embed],
-  });
+  await interaction.editReply({ embeds: [embed] });
 }
