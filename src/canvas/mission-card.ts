@@ -1,132 +1,119 @@
-import { createCanvas } from '@napi-rs/canvas';
-import { Difficulty } from '../utils/constants.js';
+import {
+  makeCanvas, fillRoundedRect, strokeRoundedRect, drawScanlines,
+  drawGlowText, drawGrid, canvasToBuffer, applyVignette
+} from './renderer.js';
+import { COLORS, DIFFICULTY_CONFIG, type Difficulty } from '../utils/constants.js';
+import { formatCoins, formatNumber } from '../utils/helpers.js';
+
+const W = 700;
+const H = 300;
 
 export async function generateMissionCard(
   heistName: string,
   difficulty: Difficulty,
   submitter: string,
   teammates: string[],
-  xp: number,
-  coins: number,
+  xpAwarded: number,
+  coinsAwarded: number,
   approved: boolean
 ): Promise<Buffer> {
-
-  const canvas = createCanvas(1400, 800);
-  const ctx = canvas.getContext('2d');
+  const { canvas, ctx } = makeCanvas(W, H);
+  const diff = DIFFICULTY_CONFIG[difficulty];
 
   // Background
-  const bg = ctx.createLinearGradient(0, 0, 1400, 800);
-  bg.addColorStop(0, '#090B10');
-  bg.addColorStop(1, '#111827');
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, approved ? '#0A1A0A' : '#1A0A0A');
+  bgGrad.addColorStop(1, '#0A0A14');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
 
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawGrid(ctx, 0, 0, W, H, 35);
 
-  // Glow
-  ctx.fillStyle = approved
-    ? 'rgba(0,255,140,0.12)'
-    : 'rgba(255,50,50,0.12)';
+  // Left stripe
+  ctx.fillStyle = approved ? COLORS.success : COLORS.danger;
+  ctx.fillRect(0, 0, 4, H);
 
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Status banner
+  const bannerColor = approved ? 'rgba(0,210,106,0.15)' : 'rgba(255,71,87,0.15)';
+  fillRoundedRect(ctx, 20, 18, W - 40, 44, 10, bannerColor);
+  strokeRoundedRect(ctx, 20, 18, W - 40, 44, 10, approved ? COLORS.success : COLORS.danger, 1.5);
 
-  // Top line
-  ctx.fillStyle = approved ? '#00ff88' : '#ff3b3b';
-  ctx.fillRect(0, 0, 1400, 8);
+  const statusIcon = approved ? '✅' : '❌';
+  const statusText = approved ? 'HEIST APPROVED — PAYDAY!' : 'HEIST REJECTED';
 
-  // Title
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 54px Arial';
-  ctx.fillText(
-    approved ? 'MISSION APPROVED' : 'MISSION REJECTED',
-    60,
-    90
-  );
+  drawGlowText(ctx, `${statusIcon}  ${statusText}`, W / 2, 46,
+    approved ? COLORS.success : COLORS.danger,
+    approved ? COLORS.success : COLORS.danger,
+    18, 'bold', 'center');
 
-  // Heist name
-  ctx.fillStyle = '#d1d5db';
-  ctx.font = 'bold 38px Arial';
-  ctx.fillText(heistName.toUpperCase(), 60, 160);
+  // Mission name
+  drawGlowText(ctx, heistName.toUpperCase(), W / 2, 98, '#FFFFFF', COLORS.primary, 22, 'bold', 'center');
 
-  // Difficulty
-  const diffColor =
-    difficulty === 'easy'
-      ? '#00ff88'
-      : difficulty === 'normal'
-      ? '#ffd000'
-      : '#ff3b3b';
+  // Difficulty badge
+  fillRoundedRect(ctx, W / 2 - 70, 108, 140, 26, 6, `${diff.color}22`);
+  strokeRoundedRect(ctx, W / 2 - 70, 108, 140, 26, 6, diff.color, 1);
+  ctx.font = 'bold 13px Arial';
+  ctx.fillStyle = diff.color;
+  ctx.textAlign = 'center';
+  ctx.fillText(`◆  ${diff.label}  ◆`, W / 2, 126);
 
-  ctx.fillStyle = diffColor;
-  ctx.roundRect(60, 200, 220, 60, 16);
-  ctx.fill();
+  // Divider
+  ctx.strokeStyle = 'rgba(200,169,81,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(20, 148); ctx.lineTo(W - 20, 148); ctx.stroke();
 
-  ctx.fillStyle = '#000';
-  ctx.font = 'bold 28px Arial';
-  ctx.fillText(difficulty.toUpperCase(), 100, 240);
+  if (approved) {
+    // Rewards
+    const rewardCards = [
+      { label: 'XP REWARDED', value: `+${formatNumber(xpAwarded)} XP`, color: COLORS.primary },
+      { label: 'COINS REWARDED', value: formatCoins(coinsAwarded), color: COLORS.gold },
+      { label: 'TEAM SIZE', value: `${1 + teammates.length}`, color: COLORS.text },
+    ];
 
-  // Crew panel
-  ctx.fillStyle = '#121826';
-  ctx.roundRect(60, 310, 550, 360, 20);
-  ctx.fill();
+    rewardCards.forEach((r, i) => {
+      const rx = 20 + i * ((W - 40) / 3);
+      const rw = (W - 40) / 3 - 8;
+      fillRoundedRect(ctx, rx, 158, rw, 80, 8, 'rgba(255,255,255,0.03)');
+      strokeRoundedRect(ctx, rx, 158, rw, 80, 8, 'rgba(200,169,81,0.12)', 1);
 
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 32px Arial';
-  ctx.fillText('CREW MEMBERS', 90, 360);
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 22px Arial';
+      ctx.fillStyle = r.color;
+      ctx.fillText(r.value, rx + rw / 2, 196);
 
-  ctx.font = '26px Arial';
+      ctx.font = '11px Arial';
+      ctx.fillStyle = COLORS.textMuted;
+      ctx.fillText(r.label, rx + rw / 2, 218);
+    });
 
-  let y = 420;
+    // Participants
+    const allParticipants = [submitter, ...teammates];
+    ctx.textAlign = 'center';
+    ctx.font = '12px Arial';
+    ctx.fillStyle = COLORS.textMuted;
+    ctx.fillText('CREW: ' + allParticipants.join('  ·  '), W / 2, 262);
+  } else {
+    ctx.textAlign = 'center';
+    ctx.font = '15px Arial';
+    ctx.fillStyle = COLORS.textMuted;
+    ctx.fillText('Your submission did not meet the requirements.', W / 2, 190);
+    ctx.font = '13px Arial';
+    ctx.fillText('Try again and make sure your proof is valid.', W / 2, 215);
 
-  const allCrew = [submitter, ...teammates];
-
-  allCrew.forEach((member, index) => {
-    ctx.fillStyle = index === 0 ? '#00d9ff' : '#ffffff';
-
-    const cleanName = member
-      .replace(/[<@!>]/g, '')
-      .replace(/\s+/g, '');
-
-    ctx.fillText(`◆ PLAYER ${index + 1}: ${cleanName}`, 90, y);
-
-    y += 50;
-  });
-
-  // Rewards panel
-  ctx.fillStyle = '#121826';
-  ctx.roundRect(760, 310, 560, 260, 20);
-  ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 34px Arial';
-  ctx.fillText('MISSION REWARDS', 800, 370);
-
-  ctx.fillStyle = '#00ff88';
-  ctx.font = 'bold 40px Arial';
-  ctx.fillText(`+${xp} XP`, 820, 450);
-
-  ctx.fillStyle = '#FFD700';
-  ctx.fillText(`$${coins.toLocaleString()}`, 820, 520);
-
-  // GTA badge
-  ctx.fillStyle = '#C8A951';
-  ctx.beginPath();
-  ctx.arc(1180, 120, 70, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#000';
-  ctx.font = 'bold 30px Arial';
-  ctx.fillText('GTA', 1145, 130);
+    ctx.font = '12px Arial';
+    ctx.fillStyle = COLORS.textMuted;
+    ctx.fillText('SUBMITTED BY: ' + submitter, W / 2, 262);
+  }
 
   // Footer
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  ctx.fillRect(0, 760, 1400, 40);
+  fillRoundedRect(ctx, 0, H - 28, W, 28, 0, 'rgba(200,169,81,0.06)');
+  ctx.font = '11px Arial';
+  ctx.fillStyle = 'rgba(200,169,81,0.4)';
+  ctx.textAlign = 'center';
+  ctx.fillText('GTA HEIST RPG  •  MISSION REPORT', W / 2, H - 10);
 
-  ctx.fillStyle = '#9ca3af';
-  ctx.font = '20px Arial';
-  ctx.fillText(
-    'LOS SANTOS HEIST NETWORK • SECURED TRANSMISSION',
-    50,
-    786
-  );
+  drawScanlines(ctx, W, H);
+  applyVignette(ctx, W, H);
 
-  return canvas.toBuffer('image/png');
+  return canvasToBuffer(canvas);
 }
