@@ -1,9 +1,14 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from "discord.js";
+import {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  EmbedBuilder,
+} from "discord.js";
+
 import { fetchRockstarProfile } from "../services/rockstar-profile.js";
 
 export const data = new SlashCommandBuilder()
   .setName("playerinfo")
-  .setDescription("Fetch Rockstar profile")
+  .setDescription("View Rockstar Social Club profile")
   .addStringOption(opt =>
     opt.setName("username")
       .setDescription("Rockstar username")
@@ -15,27 +20,46 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
   await interaction.deferReply();
 
-  const data = await fetchRockstarProfile(username);
+  const profile = await fetchRockstarProfile(username);
 
-  if (!data) {
+  if (!profile) {
     return interaction.editReply("❌ Player not found or profile is private.");
   }
 
+  const profileUrl = profile.profileUrl;
+
   const embed = new EmbedBuilder()
     .setColor(0xC8A951)
-    .setTitle(`🎮 ${data.username}`)
-    .setURL(data.profileUrl)
-    .setThumbnail(data.avatar || null)
+
+    // 🎮 Title clickable
+    .setTitle(`🎮 ${profile.username}`)
+    .setURL(profileUrl)
+
+    // 🖼️ Avatar (لو موجود)
+    .setThumbnail(profile.avatar || null)
+
+    // 👤 Layout GTA-style
     .setDescription(
-`👤 **Rockstar Profile**
-Username: ${data.username}
+`👤 **Player Info**
+Username: **${profile.username}**
+
+🕹️ **Social Club**
+Status: Online info unavailable (API restricted)
 
 👥 **Crew**
-${data.crewName ? data.crewName : "No crew data available"}
+Data: (limited access via scraping)
 
-🔗 [Open Profile](${data.profileUrl})`
+🔗 **Profile**
+[Open Rockstar Profile](${profileUrl})
+
+──────────────`
     )
-    .setFooter({ text: "Rockstar Social Club Viewer" });
 
-  await interaction.editReply({ embeds: [embed] });
+    .setFooter({
+      text: "Rockstar Social Club Viewer • Unofficial API"
+    });
+
+  await interaction.editReply({
+    embeds: [embed],
+  });
 }
