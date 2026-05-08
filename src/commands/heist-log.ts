@@ -21,6 +21,8 @@ export const data = new SlashCommandBuilder()
         { name: '🟢 Easy', value: 'easy' },
         { name: '🟡 Medium', value: 'medium' },
         { name: '🔴 Hard', value: 'hard' },
+        { name: '🟣 Extreme', value: 'extreme' },
+        { name: '🌟 Legendary', value: 'legendary' },
       )
   );
 
