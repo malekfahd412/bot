@@ -58,10 +58,15 @@ export const RANK_THRESHOLDS = [
 export const XP_PER_LEVEL = 500;
 
 export const DAILY_REWARD = {
-export const STREAK_MILESTONES: number[] = [3, 7, 14, 30, 60, 100];
   xp: 50,
   coins: 250,
+  streakBonus: {
+    xp: 25,
+    coins: 125,
+  },
 };
+
+export const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100] as const;
 
 export const MAX_CREW_SIZE = 10;
 export const MAX_HEIST_TEAMMATES = 4;
