@@ -1,60 +1,108 @@
-import { PlayerDB } from '../database/db.js';
-import { DAILY_REWARD, STREAK_MILESTONES } from '../utils/constants.js';
-import { isToday, isYesterday } from '../utils/helpers.js';
-import type { Player } from '../database/schema.js';
+import { Client, GatewayIntentBits, Partials, REST, Routes } from 'discord.js';
+import { config } from 'dotenv';
+import { logger } from './utils/logger';
+import { loadCommands } from './services/command-loader.js';
+import * as readyEvent from './events/ready.js';
+import * as interactionEvent from './events/interaction-create.js';
 
-export interface DailyResult {
-  xp: number;
-  coins: number;
-  newStreak: number;
-  streakBroken: boolean;
-  milestoneReached: boolean;
-  milestone?: number;
+config();
+
+// ── Environment validation ──────────────────────────────────────────────────
+const TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+
+const REVIEW_CHANNEL_ID = process.env.REVIEW_CHANNEL_ID;
+const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID;
+
+if (!TOKEN) {
+  logger.error('DISCORD_TOKEN is not set. Copy .env.example to .env and fill in your token.');
+  process.exit(1);
 }
 
-export class StreakSystem {
-  static claimDaily(discordId: string): DailyResult {
-    const player = PlayerDB.findByDiscordId(discordId);
-    if (!player) throw new Error('Player not found');
+if (!CLIENT_ID || !GUILD_ID) {
+  logger.error('CLIENT_ID or GUILD_ID missing in .env');
+  process.exit(1);
+}
 
-    if (player.last_daily && isToday(player.last_daily)) {
-      throw new Error('ALREADY_CLAIMED');
-    }
+// ── Commands ────────────────────────────────────────────────────────────────
+const commands = loadCommands();
 
-    const streakBroken = player.last_daily ? !isYesterday(player.last_daily) : false;
-    const newStreak = streakBroken ? 1 : player.streak_current + 1;
-    const newLongest = Math.max(newStreak, player.streak_longest);
+// ── Auto Sync Slash Commands ────────────────────────────────────────────────
+async function syncCommands() {
+  try {
+    const rest = new REST({ version: '10' }).setToken(TOKEN!);
 
-    const streakMultiplier = Math.min(1 + (newStreak - 1) * 0.1, 3.0);
-    const xp = Math.floor(DAILY_REWARD.xp * streakMultiplier);
-    const coins = Math.floor(DAILY_REWARD.coins * streakMultiplier);
+    const commandData = commands.map(cmd => cmd.data.toJSON());
 
-    PlayerDB.update(discordId, {
-      streak_current: newStreak,
-      streak_longest: newLongest,
-      last_daily: new Date().toISOString(),
-    });
+    logger.info('🔄 Auto-syncing slash commands...');
 
-    PlayerDB.addXP(discordId, xp);
-    PlayerDB.addCoins(discordId, coins);
+    await rest.put(
+      Routes.applicationGuildCommands(CLIENT_ID!, GUILD_ID!),
+      { body: commandData }
+    );
 
-    const milestoneReached = STREAK_MILESTONES.includes(newStreak as typeof STREAK_MILESTONES[number]);
-
-    return {
-      xp,
-      coins,
-      newStreak,
-      streakBroken,
-      milestoneReached,
-      milestone: milestoneReached ? newStreak : undefined,
-    };
-  }
-
-  static getStreakMultiplier(streak: number): number {
-    return Math.min(1 + (streak - 1) * 0.1, 3.0);
-  }
-
-  static getNextMilestone(streak: number): number | null {
-    return STREAK_MILESTONES.find((m) => m > streak) ?? null;
+    logger.info('✅ Slash commands synced successfully');
+  } catch (err) {
+    logger.error('❌ Failed to sync commands:', err);
   }
 }
+
+// ── Discord client ──────────────────────────────────────────────────────────
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.MessageContent,
+  ],
+  partials: [Partials.Message, Partials.Channel, Partials.GuildMember],
+});
+
+// ── Events ──────────────────────────────────────────────────────────────────
+client.once(readyEvent.name, (...args) => readyEvent.execute(...args as [Client]));
+
+client.on(interactionEvent.name, (interaction) =>
+  interactionEvent.execute(interaction, commands, {
+    reviewChannelId: REVIEW_CHANNEL_ID,
+    adminRoleId: ADMIN_ROLE_ID,
+  })
+);
+
+// ── Process handlers ────────────────────────────────────────────────────────
+process.on('SIGINT', () => {
+  logger.info('SIGINT received — shutting down gracefully...');
+  client.destroy();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received — shutting down gracefully...');
+  client.destroy();
+  process.exit(0);
+});
+
+process.on('unhandledRejection', (err) => {
+  logger.error('Unhandled rejection:', err);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception:', err);
+  process.exit(1);
+});
+
+// ── Start ───────────────────────────────────────────────────────────────────
+async function start() {
+  try {
+    logger.info('Starting GTA Heist RPG Bot...');
+
+    await syncCommands(); // 🔥 AUTO SYNC HERE
+
+    await client.login(TOKEN);
+  } catch (err) {
+    logger.error('Startup failed:', err);
+    process.exit(1);
+  }
+}
+
+start();
