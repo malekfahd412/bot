@@ -66,7 +66,7 @@ export const DAILY_REWARD = {
   },
 };
 
-export const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100] as const;
+export const STREAK_MILESTONES: number[] = [3, 7, 14, 30, 60, 100];
 
 export const MAX_CREW_SIZE = 10;
 export const MAX_HEIST_TEAMMATES = 4;
