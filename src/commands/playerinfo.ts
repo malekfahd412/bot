@@ -4,7 +4,7 @@ import {
   EmbedBuilder,
 } from "discord.js";
 
-import { fetchRockstarProfile } from "../services/rockstar-profile.js";
+import { fetchRockstarProfile } from "../services/rockstar-browser.js";
 
 export const data = new SlashCommandBuilder()
   .setName("playerinfo")
