@@ -19,11 +19,9 @@ export const data = new SlashCommandBuilder()
       .setRequired(true)
       .addChoices(
         { name: '🟢 Easy', value: 'easy' },
-        { name: '🟡 Medium', value: 'medium' },
+        { name: '🟡 Normal', value: 'normal' },
         { name: '🔴 Hard', value: 'hard' },
-        { name: '🟣 Extreme', value: 'extreme' },
-        { name: '🌟 Legendary', value: 'legendary' },
-      )
+     )
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
