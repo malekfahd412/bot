@@ -1,4 +1,11 @@
-import { Client, GatewayIntentBits, Partials, REST, Routes } from 'discord.js';
+import {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  REST,
+  Routes,
+} from 'discord.js';
+
 import { config } from 'dotenv';
 import { logger } from './utils/logger';
 import { loadCommands } from './services/command-loader.js';
@@ -7,7 +14,7 @@ import * as interactionEvent from './events/interaction-create.js';
 
 config();
 
-// ── Environment validation ──────────────────────────────────────────────────
+// ── Environment validation ────────────────────────────────────────────────
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
@@ -16,7 +23,7 @@ const REVIEW_CHANNEL_ID = process.env.REVIEW_CHANNEL_ID;
 const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID;
 
 if (!TOKEN) {
-  logger.error('DISCORD_TOKEN is not set. Copy .env.example to .env and fill in your token.');
+  logger.error('DISCORD_TOKEN is not set');
   process.exit(1);
 }
 
@@ -25,30 +32,30 @@ if (!CLIENT_ID || !GUILD_ID) {
   process.exit(1);
 }
 
-// ── Commands ────────────────────────────────────────────────────────────────
+// ── Commands ───────────────────────────────────────────────────────────────
 const commands = loadCommands();
 
-// ── Auto Sync Slash Commands ────────────────────────────────────────────────
-async function syncCommands() {
+// ── Auto Sync Slash Commands ───────────────────────────────────────────────
+async function syncCommands(): Promise<void> {
   try {
-    const rest = new REST({ version: '10' }).setToken(TOKEN!);
+    const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-    const commandData = commands.map(cmd => cmd.data.toJSON());
+    const commandData = commands.map((cmd: any) => cmd.data.toJSON());
 
-    logger.info('🔄 Auto-syncing slash commands...');
+    logger.info('🔄 Syncing slash commands...');
 
     await rest.put(
-      Routes.applicationGuildCommands(CLIENT_ID!, GUILD_ID!),
+      Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
       { body: commandData }
     );
 
-    logger.info('✅ Slash commands synced successfully');
+    logger.info('✅ Commands synced successfully');
   } catch (err) {
-    logger.error('❌ Failed to sync commands:', err);
+    logger.error('❌ Command sync failed:', err);
   }
 }
 
-// ── Discord client ──────────────────────────────────────────────────────────
+// ── Discord client ─────────────────────────────────────────────────────────
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -56,11 +63,17 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.MessageContent,
   ],
-  partials: [Partials.Message, Partials.Channel, Partials.GuildMember],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.GuildMember,
+  ],
 });
 
 // ── Events ──────────────────────────────────────────────────────────────────
-client.once(readyEvent.name, (...args) => readyEvent.execute(...args as [Client]));
+client.once(readyEvent.name, (...args) =>
+  readyEvent.execute(...(args as [typeof client]))
+);
 
 client.on(interactionEvent.name, (interaction) =>
   interactionEvent.execute(interaction, commands, {
@@ -69,15 +82,15 @@ client.on(interactionEvent.name, (interaction) =>
   })
 );
 
-// ── Process handlers ────────────────────────────────────────────────────────
+// ── Graceful shutdown ──────────────────────────────────────────────────────
 process.on('SIGINT', () => {
-  logger.info('SIGINT received — shutting down gracefully...');
+  logger.info('Shutting down...');
   client.destroy();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM received — shutting down gracefully...');
+  logger.info('Shutting down...');
   client.destroy();
   process.exit(0);
 });
@@ -91,14 +104,15 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-// ── Start ───────────────────────────────────────────────────────────────────
-async function start() {
+// ── Start bot ───────────────────────────────────────────────────────────────
+async function start(): Promise<void> {
   try {
-    logger.info('Starting GTA Heist RPG Bot...');
+    logger.info('🚀 Starting bot...');
 
-    await syncCommands(); // 🔥 AUTO SYNC HERE
-
+    await syncCommands(); // 🔥 auto register commands
     await client.login(TOKEN);
+
+    logger.info('✅ Bot online');
   } catch (err) {
     logger.error('Startup failed:', err);
     process.exit(1);
