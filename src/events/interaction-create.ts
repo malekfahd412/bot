@@ -15,11 +15,7 @@ import { ApprovalSystem } from '../systems/approval.js';
 import { HeistSystem } from '../systems/heist.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
-import { logReset } from '../systems/logReset.js';
 import type { Difficulty } from '../utils/constants.js';
-import { config } from 'dotenv';
-
-config();
 
 export const name = Events.InteractionCreate;
 
@@ -68,18 +64,20 @@ export async function execute(
     return;
   }
 
-  // ───────── Buttons ─────────
+  // ───────── Buttons only ─────────
   if (!interaction.isButton()) return;
-
-  const [action, id] = interaction.customId.split(':');
-
   if (!interaction.inGuild()) return;
 
   const isAdmin =
     interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
 
-  // ───────── 🔥 RESET BOT BUTTON ─────────
+  const [action, id] = interaction.customId.split(':');
+
+  // ───────────────────────────────
+  // 🔥 RESET SYSTEM (GTA ADMIN MENU)
+  // ───────────────────────────────
   if (interaction.customId === 'bot_reset_confirm') {
+
     if (!isAdmin) {
       return interaction.reply({
         content: '🚫 Admins only.',
@@ -88,7 +86,7 @@ export async function execute(
     }
 
     await interaction.reply({
-      content: '🧹 Resetting bot commands...',
+      content: '🧹 Reset started... wiping bot commands & cache.',
       flags: 64,
     });
 
@@ -97,14 +95,29 @@ export async function execute(
         process.env.DISCORD_TOKEN!
       );
 
-      // 🔥 DELETE ALL SLASH COMMANDS
+      const clientId = process.env.DISCORD_CLIENT_ID!;
+      const logChannelId = process.env.RESET_LOG_CHANNEL_ID;
+
+      // 1️⃣ Delete ALL global commands
       await rest.put(
-        Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!),
+        Routes.applicationCommands(clientId),
         { body: [] }
       );
 
+      // 2️⃣ Optional log
+      if (logChannelId) {
+        const channel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
+
+        if (channel && channel.isTextBased()) {
+          await channel.send(
+            `🚨 **BOT RESET EXECUTED**\n👮 By: <@${interaction.user.id}>\n🕒 ${new Date().toISOString()}`
+          );
+        }
+      }
+
+      // 3️⃣ Confirm
       await interaction.followUp({
-        content: '✅ Bot reset completed. Run deploy again.',
+        content: '✅ Reset completed. Now run deploy-commands.js again.',
         flags: 64,
       });
 
@@ -119,7 +132,7 @@ export async function execute(
     return;
   }
 
-  // ───────── Admin Guard (existing system) ─────────
+  // ───────── Admin Guard for everything else ─────────
   if (!isAdmin) {
     await interaction.reply({
       content: '🚫 Admins only.',
