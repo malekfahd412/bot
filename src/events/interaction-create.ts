@@ -6,6 +6,8 @@ import {
   AttachmentBuilder,
   Collection,
   PermissionFlagsBits,
+  REST,
+  Routes,
 } from 'discord.js';
 
 import { logger } from '../utils/logger.js';
@@ -14,6 +16,9 @@ import { HeistSystem } from '../systems/heist.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
 import type { Difficulty } from '../utils/constants.js';
+import { config } from 'dotenv';
+
+config();
 
 export const name = Events.InteractionCreate;
 
@@ -25,7 +30,7 @@ type CommandModule = {
 export async function execute(
   interaction: Interaction,
   commands: Collection<string, CommandModule>,
-  config: { reviewChannelId?: string }
+  configData: { reviewChannelId?: string }
 ): Promise<void> {
 
   // ───────── Slash Commands ─────────
@@ -36,7 +41,7 @@ export async function execute(
     try {
       await cmd.execute(interaction);
     } catch (err: unknown) {
-      logger.error(String(err)); // ✅ FIX 1
+      logger.error(String(err));
     }
     return;
   }
@@ -45,9 +50,12 @@ export async function execute(
   if (interaction.isModalSubmit()) {
     if (interaction.customId.startsWith('heist_modal:')) {
       try {
-        await handleHeistModal(interaction as ModalSubmitInteraction, config.reviewChannelId);
+        await handleHeistModal(
+          interaction as ModalSubmitInteraction,
+          configData.reviewChannelId
+        );
       } catch (err: unknown) {
-        logger.error(String(err)); // ✅ FIX 2
+        logger.error(String(err));
         if (!interaction.replied) {
           await interaction.reply({
             content: '❌ Error processing submission',
@@ -63,13 +71,54 @@ export async function execute(
   if (!interaction.isButton()) return;
 
   const [action, id] = interaction.customId.split(':');
-  if (!action || !id) return;
 
   if (!interaction.inGuild()) return;
 
   const isAdmin =
     interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
 
+  // ───────── 🔥 RESET BOT BUTTON ─────────
+  if (interaction.customId === 'bot_reset_confirm') {
+    if (!isAdmin) {
+      return interaction.reply({
+        content: '🚫 Admins only.',
+        flags: 64,
+      });
+    }
+
+    await interaction.reply({
+      content: '🧹 Resetting bot commands...',
+      flags: 64,
+    });
+
+    try {
+      const rest = new REST({ version: '10' }).setToken(
+        process.env.DISCORD_TOKEN!
+      );
+
+      // 🔥 DELETE ALL SLASH COMMANDS
+      await rest.put(
+        Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!),
+        { body: [] }
+      );
+
+      await interaction.followUp({
+        content: '✅ Bot reset completed. Run deploy again.',
+        flags: 64,
+      });
+
+    } catch (err) {
+      logger.error(String(err));
+      await interaction.followUp({
+        content: '❌ Reset failed.',
+        flags: 64,
+      });
+    }
+
+    return;
+  }
+
+  // ───────── Admin Guard (existing system) ─────────
   if (!isAdmin) {
     await interaction.reply({
       content: '🚫 Admins only.',
@@ -123,7 +172,7 @@ export async function execute(
     await interaction.message.edit({ components: [] }).catch(() => null);
 
   } catch (err: unknown) {
-    logger.error(String(err)); // ✅ FIX 3
+    logger.error(String(err));
     await interaction.editReply('❌ Something went wrong.').catch(() => null);
   }
 }
