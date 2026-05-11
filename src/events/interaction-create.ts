@@ -15,6 +15,7 @@ import { ApprovalSystem } from '../systems/approval.js';
 import { HeistSystem } from '../systems/heist.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
+import { logReset } from '../systems/logReset.js';
 import type { Difficulty } from '../utils/constants.js';
 import { config } from 'dotenv';
 
