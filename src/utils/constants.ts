@@ -24,8 +24,8 @@ export const DIFFICULTY_CONFIG = {
     color: '#00D26A',
     multiplier: 1.0,
   },
-  medium: {
-    label: 'MEDIUM',
+  normal: {
+    label: 'NORMAL',
     xp: 250,
     coins: 1250,
     color: '#FFA502',
@@ -37,20 +37,6 @@ export const DIFFICULTY_CONFIG = {
     coins: 2500,
     color: '#FF4757',
     multiplier: 2.0,
-  },
-  extreme: {
-    label: 'EXTREME',
-    xp: 1000,
-    coins: 5000,
-    color: '#9B59B6',
-    multiplier: 3.0,
-  },
-  legendary: {
-    label: 'LEGENDARY',
-    xp: 2000,
-    coins: 10000,
-    color: '#FFD700',
-    multiplier: 5.0,
   },
 } as const;
 

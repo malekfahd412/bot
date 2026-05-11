@@ -51,7 +51,7 @@ export async function execute(
         if (!interaction.replied) {
           await interaction.reply({
             content: '❌ Error processing submission',
-            ephemeral: true,
+            flags: 64,
           }).catch(() => null);
         }
       }
@@ -73,7 +73,7 @@ export async function execute(
   if (!isAdmin) {
     await interaction.reply({
       content: '🚫 Admins only.',
-      ephemeral: true,
+      flags: 64,
     }).catch(() => null);
     return;
   }

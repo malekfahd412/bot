@@ -98,7 +98,7 @@ async function askTeammates(interaction: ModalSubmitInteraction): Promise<string
   await interaction.followUp({
     content: '👥 اختر أعضاء الفريق (حد أقصى 3)',
     components: [row],
-    ephemeral: true,
+    flags: 64,
   });
 
   return new Promise((resolve) => {
@@ -137,7 +137,7 @@ export async function handleHeistModal(
   reviewChannelId: string | undefined
 ): Promise<void> {
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: 64 });
 
   const [, difficulty] = interaction.customId.split(':') as [string, Difficulty];
 

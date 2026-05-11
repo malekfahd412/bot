@@ -37,7 +37,10 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
       await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commandData });
       logger.success(`Registered ${commandData.length} commands to guild ${GUILD_ID}`);
     } else {
-      await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commandData });
+      await rest.put(
+        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID!),
+        { body: commandData }
+      );
       logger.success(`Registered ${commandData.length} global commands`);
     }
   } catch (err) {

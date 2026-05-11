@@ -80,7 +80,7 @@ export class PlayerSystem {
 
     if (success) {
       updates.successful_heists = player.successful_heists + 1;
-      const difficultyRank = ['easy', 'medium', 'hard', 'extreme', 'legendary'];
+      const difficultyRank = ['easy', 'normal', 'hard'];
       const currentHardest = player.hardest_heist ?? 'easy';
       if (difficultyRank.indexOf(difficulty) > difficultyRank.indexOf(currentHardest)) {
         updates.hardest_heist = difficulty;

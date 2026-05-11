@@ -46,7 +46,11 @@ export async function generateLeaderboardCard(players: Player[], type: 'xp' | 'c
   ctx.beginPath(); ctx.moveTo(20, HEADER_H); ctx.lineTo(W - 20, HEADER_H); ctx.stroke();
 
   // Rows
-  const medals = ['🥇', '🥈', '🥉'];
+  const medals = [
+    { text: '01', color: '#FFD700' },
+    { text: '02', color: '#C0C0C0' },
+    { text: '03', color: '#CD7F32' }
+  ];
 
   for (let i = 0; i < players.length; i++) {
     const p = players[i];
@@ -68,9 +72,18 @@ export async function generateLeaderboardCard(players: Player[], type: 'xp' | 'c
 
     // Rank number/medal
     ctx.textAlign = 'center';
-    ctx.font = 'bold 20px Arial';
+
     if (isTop3) {
-      ctx.fillText(medals[i], 46, ry + 36);
+      ctx.font = 'bold 22px Arial';
+      ctx.fillStyle = medals[i].color;
+
+      // glow
+      ctx.shadowColor = medals[i].color;
+      ctx.shadowBlur = 14;
+
+      ctx.fillText(medals[i].text, 46, ry + 38);
+
+      ctx.shadowBlur = 0;
     } else {
       ctx.fillStyle = COLORS.textMuted;
       ctx.font = 'bold 16px Arial';
