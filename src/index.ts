@@ -42,12 +42,6 @@ client.once(readyEvent.name, (...args) =>
 
 client.once("ready", async () => {
   logger.info("Bot ready");
-
-  const PANEL_CHANNEL = process.env.ADMIN_PANEL_CHANNEL_ID;
-
-  if (PANEL_CHANNEL) {
-    await sendAdminPanel(client, PANEL_CHANNEL);
-  }
 });
 
 // ── Error Handling ───────────────────
