@@ -2,8 +2,7 @@ import Database from 'better-sqlite3';
 import { join } from 'path';
 import { mkdirSync, existsSync } from 'fs';
 import { logger } from '../utils/logger.js';
-import { v4 as uuidv4 } from 'uuid';
-import type { Player, HeistSubmission, Crew, Achievement, InventoryItem } from './schema.js';
+import type { Player, HeistSubmission, Crew, Achievement } from './schema.js';
 
 const DATA_DIR = join(process.cwd(), 'data');
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
@@ -11,6 +10,11 @@ if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 const DB_PATH = join(DATA_DIR, 'game.db');
 
 let db: Database.Database;
+
+// safer UUID for Replit / Node 20+
+function uuid(): string {
+  return crypto.randomUUID();
+}
 
 export function getDB(): Database.Database {
   if (!db) {
@@ -100,25 +104,28 @@ function initSchema(database: Database.Database): void {
       quantity INTEGER NOT NULL DEFAULT 1,
       acquired_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-
-    CREATE INDEX IF NOT EXISTS idx_players_discord_id ON players(discord_id);
-    CREATE INDEX IF NOT EXISTS idx_players_xp ON players(xp DESC);
-    CREATE INDEX IF NOT EXISTS idx_heist_status ON heist_submissions(status);
-    CREATE INDEX IF NOT EXISTS idx_heist_submitter ON heist_submissions(submitter_id);
   `);
 }
 
+/* ───────── PLAYER ───────── */
+
 export const PlayerDB = {
   findByDiscordId(discordId: string): Player | undefined {
-    return getDB().prepare('SELECT * FROM players WHERE discord_id = ?').get(discordId) as Player | undefined;
+    return getDB()
+      .prepare('SELECT * FROM players WHERE discord_id = ?')
+      .get(discordId) as Player | undefined;
   },
 
   create(discordId: string, username: string, avatarUrl?: string): Player {
-    const id = uuidv4();
-    getDB().prepare(`
-      INSERT INTO players (id, discord_id, username, avatar_url)
-      VALUES (?, ?, ?, ?)
-    `).run(id, discordId, username, avatarUrl ?? null);
+    const id = uuid();
+
+    getDB()
+      .prepare(
+        `INSERT INTO players (id, discord_id, username, avatar_url)
+         VALUES (?, ?, ?, ?)`
+      )
+      .run(id, discordId, username, avatarUrl ?? null);
+
     return this.findByDiscordId(discordId)!;
   },
 
@@ -126,198 +133,69 @@ export const PlayerDB = {
     return this.findByDiscordId(discordId) ?? this.create(discordId, username, avatarUrl);
   },
 
-  update(discordId: string, data: Partial<Omit<Player, 'id' | 'discord_id' | 'created_at'>>): void {
-    if (Object.keys(data).length === 0) return;
-    const sets = Object.keys(data).map(k => `${k} = ?`).join(', ');
-    const values = [...Object.values(data), new Date().toISOString(), discordId];
-    getDB().prepare(`UPDATE players SET ${sets}, updated_at = ? WHERE discord_id = ?`).run(...values);
+  update(
+    discordId: string,
+    data: Partial<Omit<Player, 'id' | 'discord_id' | 'created_at'>>
+  ): void {
+    const keys = Object.keys(data);
+
+    if (keys.length === 0) return;
+
+    const sets = keys.map(k => `${k} = ?`).join(', ');
+    const values = Object.values(data);
+
+    getDB()
+      .prepare(
+        `UPDATE players SET ${sets}, updated_at = ? WHERE discord_id = ?`
+      )
+      .run(...values, new Date().toISOString(), discordId);
   },
 
   clearCrewId(discordId: string): void {
-    getDB().prepare("UPDATE players SET crew_id = NULL, updated_at = ? WHERE discord_id = ?")
+    getDB()
+      .prepare(
+        `UPDATE players SET crew_id = NULL, updated_at = ? WHERE discord_id = ?`
+      )
       .run(new Date().toISOString(), discordId);
   },
 
-  addXP(discordId: string, xp: number): { newXP: number; newLevel: number; leveledUp: boolean } {
+  addXP(discordId: string, xp: number) {
     const player = this.findByDiscordId(discordId)!;
+
     const newXP = player.xp + xp;
     const newLevel = Math.floor(newXP / 500) + 1;
     const leveledUp = newLevel > player.level;
+
     this.update(discordId, { xp: newXP, level: newLevel });
+
     return { newXP, newLevel, leveledUp };
   },
 
-  // Atomically add coins AND track total_earnings in a single SQL statement
   addEarnings(discordId: string, coins: number): void {
-    getDB().prepare(`
-      UPDATE players
-      SET coins = coins + ?, total_earnings = total_earnings + ?, updated_at = ?
-      WHERE discord_id = ?
-    `).run(coins, coins, new Date().toISOString(), discordId);
+    getDB()
+      .prepare(
+        `UPDATE players
+         SET coins = coins + ?, total_earnings = total_earnings + ?, updated_at = ?
+         WHERE discord_id = ?`
+      )
+      .run(coins, coins, new Date().toISOString(), discordId);
   },
 
-  // Add coins without affecting total_earnings (admin gives, daily rewards, etc.)
   addCoins(discordId: string, coins: number): void {
-    getDB().prepare('UPDATE players SET coins = coins + ?, updated_at = ? WHERE discord_id = ?')
+    getDB()
+      .prepare(
+        `UPDATE players SET coins = coins + ?, updated_at = ? WHERE discord_id = ?`
+      )
       .run(coins, new Date().toISOString(), discordId);
   },
 
-  // Directly add XP without level recalculation (admin use)
   addXPRaw(discordId: string, xp: number): void {
-    getDB().prepare(`
-      UPDATE players
-      SET xp = xp + ?, level = (((xp + ?) / 500) + 1), updated_at = ?
-      WHERE discord_id = ?
-    `).run(xp, xp, new Date().toISOString(), discordId);
-  },
-
-  getLeaderboard(limit = 10): Player[] {
-    return getDB().prepare('SELECT * FROM players ORDER BY xp DESC LIMIT ?').all(limit) as Player[];
-  },
-
-  getLeaderboardByCoins(limit = 10): Player[] {
-    return getDB().prepare('SELECT * FROM players ORDER BY coins DESC LIMIT ?').all(limit) as Player[];
-  },
-
-  getRank(discordId: string): number {
-    const result = getDB().prepare(`
-      SELECT COUNT(*) + 1 as rank FROM players WHERE xp > (
-        SELECT xp FROM players WHERE discord_id = ?
+    getDB()
+      .prepare(
+        `UPDATE players
+         SET xp = xp + ?, level = ((xp + ?) / 500) + 1, updated_at = ?
+         WHERE discord_id = ?`
       )
-    `).get(discordId) as { rank: number };
-    return result.rank;
-  },
-};
-
-export const HeistDB = {
-  create(data: {
-    submitter_id: string;
-    heist_name: string;
-    difficulty: string;
-    teammates: string;
-    proof_url: string;
-    notes: string | null;
-    submission_channel_id: string | null;
-  }): HeistSubmission {
-    const id = uuidv4();
-    getDB().prepare(`
-      INSERT INTO heist_submissions (id, submitter_id, heist_name, difficulty, teammates, proof_url, notes, submission_channel_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, data.submitter_id, data.heist_name, data.difficulty, data.teammates, data.proof_url, data.notes, data.submission_channel_id);
-    return this.findById(id)!;
-  },
-
-  findById(id: string): HeistSubmission | undefined {
-    return getDB().prepare('SELECT * FROM heist_submissions WHERE id = ?').get(id) as HeistSubmission | undefined;
-  },
-
-  findPending(): HeistSubmission[] {
-    return getDB().prepare("SELECT * FROM heist_submissions WHERE status = 'pending' ORDER BY created_at ASC").all() as HeistSubmission[];
-  },
-
-  approve(id: string, reviewerId: string, reviewNote?: string): void {
-    getDB().prepare(`
-      UPDATE heist_submissions
-      SET status = 'approved', reviewer_id = ?, reviewer_note = ?, reviewed_at = ?
-      WHERE id = ?
-    `).run(reviewerId, reviewNote ?? null, new Date().toISOString(), id);
-  },
-
-  reject(id: string, reviewerId: string, reviewNote?: string): void {
-    getDB().prepare(`
-      UPDATE heist_submissions
-      SET status = 'rejected', reviewer_id = ?, reviewer_note = ?, reviewed_at = ?
-      WHERE id = ?
-    `).run(reviewerId, reviewNote ?? null, new Date().toISOString(), id);
-  },
-
-  setAwardedAmounts(id: string, xp: number, coins: number): void {
-    getDB().prepare('UPDATE heist_submissions SET xp_awarded = ?, coins_awarded = ? WHERE id = ?').run(xp, coins, id);
-  },
-
-  setReviewMessageId(id: string, messageId: string): void {
-    getDB().prepare('UPDATE heist_submissions SET review_message_id = ? WHERE id = ?').run(messageId, id);
-  },
-
-  getPlayerHistory(discordId: string, limit = 10): HeistSubmission[] {
-    return getDB().prepare("SELECT * FROM heist_submissions WHERE submitter_id = ? ORDER BY created_at DESC LIMIT ?").all(discordId, limit) as HeistSubmission[];
-  },
-
-  countPending(): number {
-    const result = getDB().prepare("SELECT COUNT(*) as c FROM heist_submissions WHERE status = 'pending'").get() as { c: number };
-    return result.c;
-  },
-};
-
-export const CrewDB = {
-  create(name: string, tag: string, ownerId: string, description?: string): Crew {
-    const id = uuidv4();
-    getDB().prepare(`
-      INSERT INTO crews (id, name, tag, owner_id, description) VALUES (?, ?, ?, ?, ?)
-    `).run(id, name, tag, ownerId, description ?? null);
-    PlayerDB.update(ownerId, { crew_id: id });
-    return this.findById(id)!;
-  },
-
-  findById(id: string): Crew | undefined {
-    return getDB().prepare('SELECT * FROM crews WHERE id = ?').get(id) as Crew | undefined;
-  },
-
-  findByName(name: string): Crew | undefined {
-    return getDB().prepare('SELECT * FROM crews WHERE LOWER(name) = LOWER(?)').get(name) as Crew | undefined;
-  },
-
-  findByTag(tag: string): Crew | undefined {
-    return getDB().prepare('SELECT * FROM crews WHERE LOWER(tag) = LOWER(?)').get(tag) as Crew | undefined;
-  },
-
-  getMembers(crewId: string): Player[] {
-    return getDB().prepare('SELECT * FROM players WHERE crew_id = ?').all(crewId) as Player[];
-  },
-
-  addMember(crewId: string, discordId: string): void {
-    PlayerDB.update(discordId, { crew_id: crewId });
-    getDB().prepare('UPDATE crews SET member_count = member_count + 1 WHERE id = ?').run(crewId);
-  },
-
-  removeMember(crewId: string, discordId: string): void {
-    // Use dedicated clearCrewId to avoid null type hack
-    PlayerDB.clearCrewId(discordId);
-    getDB().prepare('UPDATE crews SET member_count = MAX(0, member_count - 1) WHERE id = ?').run(crewId);
-  },
-
-  update(id: string, data: Partial<Crew>): void {
-    if (Object.keys(data).length === 0) return;
-    const sets = Object.keys(data).map(k => `${k} = ?`).join(', ');
-    getDB().prepare(`UPDATE crews SET ${sets} WHERE id = ?`).run(...Object.values(data), id);
-  },
-
-  // Atomic increment for heist results — no read-modify-write race
-  recordHeistEarnings(crewId: string, earnings: number): void {
-    getDB().prepare(`
-      UPDATE crews SET total_heists = total_heists + 1, total_earnings = total_earnings + ? WHERE id = ?
-    `).run(earnings, crewId);
-  },
-
-  getLeaderboard(limit = 10): Crew[] {
-    return getDB().prepare('SELECT * FROM crews ORDER BY total_earnings DESC LIMIT ?').all(limit) as Crew[];
-  },
-};
-
-export const AchievementDB = {
-  unlock(playerId: string, key: string, name: string, description: string, icon: string): boolean {
-    try {
-      getDB().prepare(`
-        INSERT INTO achievements (id, player_id, achievement_key, achievement_name, description, icon)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(uuidv4(), playerId, key, name, description, icon);
-      return true;
-    } catch {
-      return false;
-    }
-  },
-
-  getPlayerAchievements(playerId: string): Achievement[] {
-    return getDB().prepare('SELECT * FROM achievements WHERE player_id = ? ORDER BY unlocked_at DESC').all(playerId) as Achievement[];
-  },
+      .run(xp, xp, new Date().toISOString(), discordId);
+  }
 };
