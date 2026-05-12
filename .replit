@@ -21,10 +21,15 @@ args = "Start application"
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
+mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm start"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node dist/deploy-commands.js"
 
 [workflows.workflow.metadata]
 outputType = "console"
