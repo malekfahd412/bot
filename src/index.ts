@@ -44,12 +44,15 @@ client.once(readyEvent.name, (...args) =>
   readyEvent.execute(...(args as [any]))
 );
 
-client.on(interactionEvent.name, (interaction) =>
-  interactionEvent.execute(interaction, commands, {
-    reviewChannelId: REVIEW_CHANNEL_ID,
-    adminRoleId: ADMIN_ROLE_ID,
-  })
-);
+client.once("ready", async () => {
+  logger.info("Bot ready");
+
+  const PANEL_CHANNEL = process.env.ADMIN_PANEL_CHANNEL_ID;
+
+  if (PANEL_CHANNEL) {
+    await sendAdminPanel(client, PANEL_CHANNEL);
+  }
+});
 
 // ── Error Handling ───────────────────
 process.on('unhandledRejection', (err) => {
