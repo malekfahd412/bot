@@ -1,65 +1,24 @@
-import { Client } from "discord.js";
-import { sendLog } from "./logClient.js";
-import { LogType } from "./logTypes.js";
+import { Client, TextChannel } from 'discord.js';
 
-export class LogService {
-  static channelId = process.env.LOG_CHANNEL_ID!;
+let client: Client;
 
-  static log(
-    client: Client,
-    type: LogType,
-    userId: string,
-    targetId?: string
-  ) {
-    switch (type) {
+export function initLogger() {
+  // بيتربط بالبوت بعد ما يشتغل
+  console.log('Logger system initialized');
+}
 
-      case "RESET":
-        return sendLog(client, this.channelId, {
-          type,
-          title: "🔥 FULL BOT RESET",
-          description: "All commands & systems were wiped.",
-          userId,
-          color: 0xff0000,
-        });
+export function attachClient(c: Client) {
+  client = c;
+}
 
-      case "PLAYER_RESET":
-        return sendLog(client, this.channelId, {
-          type,
-          title: "👤 PLAYER RESET",
-          description: "Player data has been reset.",
-          userId,
-          targetId,
-          color: 0xff8800,
-        });
+export async function sendLog(channelId: string, content: string) {
+  if (!client) return;
 
-      case "HEIST_APPROVE":
-        return sendLog(client, this.channelId, {
-          type,
-          title: "✅ HEIST APPROVED",
-          description: "A heist submission was approved.",
-          userId,
-          targetId,
-          color: 0x00ff99,
-        });
+  const channel = await client.channels.fetch(channelId).catch(() => null);
 
-      case "HEIST_REJECT":
-        return sendLog(client, this.channelId, {
-          type,
-          title: "❌ HEIST REJECTED",
-          description: "A heist submission was rejected.",
-          userId,
-          targetId,
-          color: 0xff3355,
-        });
+  if (!channel || !channel.isTextBased()) return;
 
-      case "ADMIN_ACTION":
-        return sendLog(client, this.channelId, {
-          type,
-          title: "⚙ ADMIN ACTION",
-          description: "Admin performed a system action.",
-          userId,
-          color: 0x3366ff,
-        });
-    }
-  }
+  await (channel as TextChannel).send({
+    content,
+  });
 }
