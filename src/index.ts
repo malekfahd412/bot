@@ -26,24 +26,21 @@ const client = new Client({
 
 const commands = loadCommands();
 
-// 🔥 مهم جدًا: تشغيل events بشكل صحيح
-client.once('clientReady', (...args) =>
-  readyEvent.execute(...(args as [any]))
+// ───────── EVENTS ─────────
+client.once(readyEvent.name, (...args) =>
+  readyEvent.execute(...(args as any))
 );
 
-client.on('interactionCreate', async (interaction) => {
-  try {
-    await interactionEvent.execute(interaction, commands, {
-      reviewChannelId: process.env.REVIEW_CHANNEL_ID,
-    });
-  } catch (err) {
-    logger.error(err);
-  }
-});
+client.on(interactionEvent.name, (interaction) =>
+  interactionEvent.execute(interaction, commands, {
+    reviewChannelId: process.env.REVIEW_CHANNEL_ID,
+  })
+);
 
-// logs
-process.on('unhandledRejection', (e) => logger.error(e));
-process.on('uncaughtException', (e) => logger.error(e));
-
+// ───────── START ─────────
 logger.info('Starting bot...');
-client.login(TOKEN);
+
+client.login(TOKEN).catch((err) => {
+  logger.error('Login failed:', err);
+  process.exit(1);
+});
