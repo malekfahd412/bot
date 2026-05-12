@@ -16,6 +16,7 @@ import { HeistSystem } from '../systems/heist.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
 import type { Difficulty } from '../utils/constants.js';
+import { handleAdminButtons } from "../systems/admin/buttons.js";
 
 export const name = Events.InteractionCreate;
 
