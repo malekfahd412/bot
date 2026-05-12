@@ -79,10 +79,12 @@ export async function execute(
   if (interaction.customId === 'bot_reset_confirm') {
 
     if (!isAdmin) {
-      return interaction.reply({
-        content: '🚫 Admins only.',
-        flags: 64,
+      await interaction.reply({
+        content: "🚫 Admins only.",
+        ephemeral: true,
       });
+
+      return;
     }
 
     await interaction.reply({
