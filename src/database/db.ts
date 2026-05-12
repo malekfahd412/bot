@@ -24,7 +24,7 @@ export function getDB(): Database.Database {
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
     initSchema(db);
-    logger.success('Database initialized');
+    logger.success('Database ready');
   }
   return db;
 }
@@ -35,15 +35,15 @@ function initSchema(database: Database.Database): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,
-      discord_id TEXT UNIQUE NOT NULL,
-      username TEXT NOT NULL,
+      discord_id TEXT UNIQUE,
+      username TEXT,
       avatar_url TEXT,
-      level INTEGER DEFAULT 1,
       xp INTEGER DEFAULT 0,
+      level INTEGER DEFAULT 1,
       coins INTEGER DEFAULT 1000,
       crew_id TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
+      total_earnings INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS heist_submissions (
@@ -59,6 +59,7 @@ function initSchema(database: Database.Database): void {
       reviewer_note TEXT,
       xp_awarded INTEGER,
       coins_awarded INTEGER,
+      review_message_id TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -69,8 +70,7 @@ function initSchema(database: Database.Database): void {
       owner_id TEXT,
       description TEXT,
       member_count INTEGER DEFAULT 1,
-      total_earnings INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
+      total_earnings INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS achievements (
@@ -89,9 +89,9 @@ function initSchema(database: Database.Database): void {
 
 export const PlayerDB = {
   findByDiscordId(id: string): Player | undefined {
-    return getDB().prepare(
-      'SELECT * FROM players WHERE discord_id = ?'
-    ).get(id) as Player | undefined;
+    return getDB()
+      .prepare('SELECT * FROM players WHERE discord_id = ?')
+      .get(id) as Player | undefined;
   },
 
   create(discord_id: string, username: string, avatar_url?: string): Player {
@@ -109,7 +109,7 @@ export const PlayerDB = {
     return this.findByDiscordId(id) ?? this.create(id, username, avatar);
   },
 
-  update(discord_id: string, data: Partial<Player>): void {
+  update(discord_id: string, data: any): void {
     const keys = Object.keys(data);
     if (!keys.length) return;
 
@@ -117,8 +117,8 @@ export const PlayerDB = {
     const values = Object.values(data);
 
     getDB()
-      .prepare(`UPDATE players SET ${set}, updated_at = ? WHERE discord_id = ?`)
-      .run(...values, new Date().toISOString(), discord_id);
+      .prepare(`UPDATE players SET ${set} WHERE discord_id = ?`)
+      .run(...values, discord_id);
   },
 
   addXP(id: string, xp: number) {
@@ -126,19 +126,30 @@ export const PlayerDB = {
 
     const newXP = p.xp + xp;
     const newLevel = Math.floor(newXP / 500) + 1;
+    const leveledUp = newLevel > p.level;
 
     this.update(id, { xp: newXP, level: newLevel });
 
-    return { newXP, newLevel };
+    return { newXP, newLevel, leveledUp };
   },
 
   addCoins(id: string, coins: number) {
-    getDB().prepare(
-      'UPDATE players SET coins = coins + ?, updated_at = ? WHERE discord_id = ?'
-    ).run(coins, new Date().toISOString(), id);
+    getDB()
+      .prepare('UPDATE players SET coins = coins + ? WHERE discord_id = ?')
+      .run(coins, id);
   },
 
-  /* 🔥 FIX MISSING METHODS */
+  addEarnings(id: string, coins: number) {
+    getDB()
+      .prepare(`
+        UPDATE players
+        SET coins = coins + ?, total_earnings = total_earnings + ?
+        WHERE discord_id = ?
+      `)
+      .run(coins, coins, id);
+  },
+
+  /* FIXED METHODS */
   getLeaderboard(limit = 10): Player[] {
     return getDB()
       .prepare('SELECT * FROM players ORDER BY xp DESC LIMIT ?')
@@ -151,16 +162,15 @@ export const PlayerDB = {
       .all(limit) as Player[];
   },
 
-  getRank(discord_id: string): number {
-    const result = getDB().prepare(`
-      SELECT COUNT(*) + 1 as rank
-      FROM players
-      WHERE xp > (
-        SELECT xp FROM players WHERE discord_id = ?
-      )
-    `).get(discord_id) as { rank: number };
+  getRank(id: string): number {
+    const r = getDB()
+      .prepare(`
+        SELECT COUNT(*) + 1 as rank FROM players
+        WHERE xp > (SELECT xp FROM players WHERE discord_id = ?)
+      `)
+      .get(id) as { rank: number };
 
-    return result.rank;
+    return r.rank;
   }
 };
 
@@ -191,50 +201,144 @@ export const HeistDB = {
     return getDB()
       .prepare('SELECT * FROM heist_submissions WHERE id = ?')
       .get(id) as HeistSubmission | undefined;
+  },
+
+  /* FIXED MISSING METHODS */
+  findPending() {
+    return getDB()
+      .prepare("SELECT * FROM heist_submissions WHERE status = 'pending'")
+      .all() as HeistSubmission[];
+  },
+
+  approve(id: string, reviewerId: string, note?: string) {
+    getDB()
+      .prepare(`
+        UPDATE heist_submissions
+        SET status='approved', reviewer_id=?, reviewer_note=?
+        WHERE id=?
+      `)
+      .run(reviewerId, note ?? null, id);
+  },
+
+  reject(id: string, reviewerId: string, note?: string) {
+    getDB()
+      .prepare(`
+        UPDATE heist_submissions
+        SET status='rejected', reviewer_id=?, reviewer_note=?
+        WHERE id=?
+      `)
+      .run(reviewerId, note ?? null, id);
+  },
+
+  setAwardedAmounts(id: string, xp: number, coins: number) {
+    getDB()
+      .prepare(`
+        UPDATE heist_submissions
+        SET xp_awarded=?, coins_awarded=?
+        WHERE id=?
+      `)
+      .run(xp, coins, id);
+  },
+
+  setReviewMessageId(id: string, msg: string) {
+    getDB()
+      .prepare(`
+        UPDATE heist_submissions
+        SET review_message_id=?
+        WHERE id=?
+      `)
+      .run(msg, id);
+  },
+
+  getPlayerHistory(id: string, limit = 10) {
+    return getDB()
+      .prepare(`
+        SELECT * FROM heist_submissions
+        WHERE submitter_id=?
+        ORDER BY created_at DESC
+        LIMIT ?
+      `)
+      .all(id, limit) as HeistSubmission[];
   }
 };
 
 /* ───────────────────────── CREW DB ───────────────────────── */
 
 export const CrewDB = {
-  create(name: string, tag: string, owner_id: string): Crew {
+  create(name: string, tag: string, owner: string, desc?: string): Crew {
     const id = uuidv4();
 
     getDB().prepare(`
-      INSERT INTO crews (id, name, tag, owner_id)
-      VALUES (?, ?, ?, ?)
-    `).run(id, name, tag, owner_id);
+      INSERT INTO crews (id, name, tag, owner_id, description)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, name, tag, owner, desc ?? null);
 
     return this.findById(id)!;
   },
 
   findById(id: string) {
-    return getDB()
-      .prepare('SELECT * FROM crews WHERE id = ?')
-      .get(id) as Crew | undefined;
+    return getDB().prepare('SELECT * FROM crews WHERE id=?').get(id) as Crew;
   },
 
   findByName(name: string) {
+    return getDB().prepare('SELECT * FROM crews WHERE name=?').get(name) as Crew;
+  },
+
+  findByTag(tag: string) {
+    return getDB().prepare('SELECT * FROM crews WHERE tag=?').get(tag) as Crew;
+  },
+
+  addMember(id: string, user: string) {
+    PlayerDB.update(user, { crew_id: id });
+  },
+
+  removeMember(id: string, user: string) {
+    PlayerDB.update(user, { crew_id: null });
+  },
+
+  getMembers(id: string) {
     return getDB()
-      .prepare('SELECT * FROM crews WHERE name = ?')
-      .get(name) as Crew | undefined;
+      .prepare('SELECT * FROM players WHERE crew_id=?')
+      .all(id) as Player[];
+  },
+
+  recordHeistEarnings(id: string, money: number) {
+    getDB()
+      .prepare(`
+        UPDATE crews
+        SET total_earnings = total_earnings + ?
+        WHERE id=?
+      `)
+      .run(money, id);
+  },
+
+  getLeaderboard(limit = 10) {
+    return getDB()
+      .prepare('SELECT * FROM crews ORDER BY total_earnings DESC LIMIT ?')
+      .all(limit) as Crew[];
   }
 };
 
 /* ───────────────────────── ACHIEVEMENTS ───────────────────────── */
 
 export const AchievementDB = {
-  unlock(player_id: string, key: string, name: string, description: string, icon: string) {
+  unlock(player: string, key: string, name: string, desc: string, icon: string) {
     try {
       getDB().prepare(`
         INSERT INTO achievements
         (id, player_id, achievement_key, achievement_name, description, icon)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(uuidv4(), player_id, key, name, description, icon);
+      `).run(uuidv4(), player, key, name, desc, icon);
 
       return true;
     } catch {
       return false;
     }
+  },
+
+  getPlayerAchievements(id: string) {
+    return getDB()
+      .prepare('SELECT * FROM achievements WHERE player_id=?')
+      .all(id) as Achievement[];
   }
 };
