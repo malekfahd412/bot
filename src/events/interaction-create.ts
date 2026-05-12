@@ -16,6 +16,7 @@ import { HeistSystem } from '../systems/heist.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
 import type { Difficulty } from '../utils/constants.js';
+
 import { handleAdminButtons } from "../systems/admin/buttons.js";
 
 export const name = Events.InteractionCreate;
@@ -54,6 +55,7 @@ export async function execute(
         );
       } catch (err: unknown) {
         logger.error(String(err));
+
         if (!interaction.replied) {
           await interaction.reply({
             content: '❌ Error processing submission',
@@ -69,27 +71,32 @@ export async function execute(
   if (!interaction.isButton()) return;
   if (!interaction.inGuild()) return;
 
+  // 👇 ADMIN PANEL HANDLER (NEW SYSTEM)
+  if (interaction.isButton()) {
+    await handleAdminButtons(interaction);
+    return;
+  }
+
   const isAdmin =
     interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
 
   const [action, id] = interaction.customId.split(':');
 
   // ───────────────────────────────
-  // 🔥 RESET SYSTEM (GTA ADMIN MENU)
+  // 🔥 RESET SYSTEM
   // ───────────────────────────────
   if (interaction.customId === 'bot_reset_confirm') {
 
     if (!isAdmin) {
       await interaction.reply({
         content: "🚫 Admins only.",
-        ephemeral: true,
+        flags: 64,
       });
-
       return;
     }
 
     await interaction.reply({
-      content: '🧹 Reset started... wiping bot commands & cache.',
+      content: '🧹 Reset started...',
       flags: 64,
     });
 
@@ -101,41 +108,34 @@ export async function execute(
       const clientId = process.env.DISCORD_CLIENT_ID!;
       const logChannelId = process.env.RESET_LOG_CHANNEL_ID;
 
-      // 1️⃣ Delete ALL global commands
       await rest.put(
         Routes.applicationCommands(clientId),
         { body: [] }
       );
 
-      // 2️⃣ Optional log
       if (logChannelId) {
         const channel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
 
         if (channel && channel.isTextBased()) {
           await channel.send(
-            `🚨 **BOT RESET EXECUTED**\n👮 By: <@${interaction.user.id}>\n🕒 ${new Date().toISOString()}`
+            `🚨 BOT RESET BY <@${interaction.user.id}>`
           );
         }
       }
 
-      // 3️⃣ Confirm
       await interaction.followUp({
-        content: '✅ Reset completed. Now run deploy-commands.js again.',
+        content: '✅ Reset completed.',
         flags: 64,
       });
 
     } catch (err) {
       logger.error(String(err));
-      await interaction.followUp({
-        content: '❌ Reset failed.',
-        flags: 64,
-      });
     }
 
     return;
   }
 
-  // ───────── Admin Guard for everything else ─────────
+  // ───────── Admin Guard ─────────
   if (!isAdmin) {
     await interaction.reply({
       content: '🚫 Admins only.',
@@ -162,7 +162,7 @@ export async function execute(
       );
 
       await interaction.editReply({
-        content: `✅ Approved by <@${interaction.user.id}>`,
+        content: `✅ Approved`,
         files: [new AttachmentBuilder(buffer, { name: 'heist.png' })],
       });
     }
@@ -190,6 +190,6 @@ export async function execute(
 
   } catch (err: unknown) {
     logger.error(String(err));
-    await interaction.editReply('❌ Something went wrong.').catch(() => null);
+    await interaction.editReply('❌ Error').catch(() => null);
   }
 }
