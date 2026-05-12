@@ -1,36 +1,19 @@
-import { EmbedBuilder, TextChannel, Client } from "discord.js";
-import { LogPayload } from "./logTypes.js";
+import { sendLog } from './logService.js';
+import type { LogType } from './logTypes.js';
 
-export async function sendLog(
-  client: Client,
-  channelId: string,
-  payload: LogPayload
-) {
-  const channel = await client.channels.fetch(channelId).catch(() => null);
+export class LogClient {
+  static async log(
+    channelId: string,
+    type: LogType,
+    message: string
+  ) {
+    const emoji =
+      type === 'HEIST_APPROVE' ? '✅' :
+      type === 'HEIST_REJECT' ? '❌' :
+      type === 'PLAYER_RESET' ? '🧹' :
+      type === 'BOT_RESET' ? '🚨' :
+      '📌';
 
-  if (!channel || !channel.isTextBased()) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle(payload.title)
-    .setDescription(payload.description)
-    .setColor(payload.color ?? 0xffcc00)
-    .setTimestamp(new Date());
-
-  if (payload.userId) {
-    embed.addFields({
-      name: "👮 Admin",
-      value: `<@${payload.userId}>`,
-      inline: true,
-    });
+    await sendLog(channelId, `${emoji} **${type}**\n${message}`);
   }
-
-  if (payload.targetId) {
-    embed.addFields({
-      name: "🎯 Target",
-      value: `<@${payload.targetId}>`,
-      inline: true,
-    });
-  }
-
-  await (channel as TextChannel).send({ embeds: [embed] });
 }
