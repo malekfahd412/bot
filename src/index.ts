@@ -7,17 +7,13 @@ import * as interactionEvent from './events/interaction-create.js';
 
 config();
 
-// ── ENV ─────────────────────────────
 const TOKEN = process.env.DISCORD_TOKEN;
-const REVIEW_CHANNEL_ID = process.env.REVIEW_CHANNEL_ID;
-const ADMIN_ROLE_ID = process.env.ADMIN_ROLE_ID;
 
 if (!TOKEN) {
-  logger.error('DISCORD_TOKEN missing in .env');
+  logger.error('DISCORD_TOKEN missing');
   process.exit(1);
 }
 
-// ── Client ──────────────────────────
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -25,38 +21,29 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.MessageContent,
   ],
-  partials: [
-    Partials.Message,
-    Partials.Channel,
-    Partials.GuildMember,
-  ],
+  partials: [Partials.Message, Partials.Channel, Partials.GuildMember],
 });
 
-// ── Commands ────────────────────────
 const commands = loadCommands();
 
-// ── Events ───────────────────────────
-client.once(readyEvent.name, (...args) =>
+// 🔥 مهم جدًا: تشغيل events بشكل صحيح
+client.once('clientReady', (...args) =>
   readyEvent.execute(...(args as [any]))
 );
 
-client.once("ready", async () => {
-  logger.info("Bot ready");
+client.on('interactionCreate', async (interaction) => {
+  try {
+    await interactionEvent.execute(interaction, commands, {
+      reviewChannelId: process.env.REVIEW_CHANNEL_ID,
+    });
+  } catch (err) {
+    logger.error(err);
+  }
 });
 
-// ── Error Handling ───────────────────
-process.on('unhandledRejection', (err) => {
-  logger.error('Unhandled rejection:', err);
-});
+// logs
+process.on('unhandledRejection', (e) => logger.error(e));
+process.on('uncaughtException', (e) => logger.error(e));
 
-process.on('uncaughtException', (err) => {
-  logger.error('Uncaught exception:', err);
-  process.exit(1);
-});
-
-// ── Start ────────────────────────────
-logger.info('Starting GTA Heist RPG Bot...');
-client.login(TOKEN).catch((err) => {
-  logger.error('Login failed:', err);
-  process.exit(1);
-});
+logger.info('Starting bot...');
+client.login(TOKEN);
