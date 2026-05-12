@@ -5,6 +5,7 @@ import { loadCommands } from './services/command-loader.js';
 import * as readyEvent from './events/ready.js';
 import * as interactionEvent from './events/interaction-create.js';
 import { initLogger } from './systems/logger/logService.js';
+import { sendAdminPanel } from './systems/admin/panel.js';
 
 config();
 
