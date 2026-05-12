@@ -1,9 +1,9 @@
 export type LogType =
-  | "RESET"
-  | "PLAYER_RESET"
-  | "HEIST_APPROVE"
-  | "HEIST_REJECT"
-  | "ADMIN_ACTION";
+  | 'HEIST_APPROVE'
+  | 'HEIST_REJECT'
+  | 'PLAYER_RESET'
+  | 'BOT_RESET'
+  | 'DAILY_CLAIM';
 
 export interface LogPayload {
   type: LogType;
