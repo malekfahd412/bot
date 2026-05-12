@@ -32,9 +32,13 @@ client.once(readyEvent.name, (...args) =>
 );
 
 client.on(interactionEvent.name, (interaction) =>
-  interactionEvent.execute(interaction, commands, {
-    reviewChannelId: process.env.REVIEW_CHANNEL_ID,
-  })
+  interactionEvent.execute(
+    interaction,
+    commands,
+    {
+      reviewChannelId: process.env.REVIEW_CHANNEL_ID,
+    }
+  )
 );
 
 // ───────── START ─────────
