@@ -3,6 +3,7 @@ import {
   Interaction,
   ChatInputCommandInteraction,
   ModalSubmitInteraction,
+  ButtonInteraction,
   AttachmentBuilder,
   Collection,
   PermissionFlagsBits,
@@ -15,181 +16,281 @@ import { ApprovalSystem } from '../systems/approval.js';
 import { HeistSystem } from '../systems/heist.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
-import type { Difficulty } from '../utils/constants.js';
 
-import { handleAdminButtons } from "../systems/admin/buttons.js";
+import type { Difficulty } from '../utils/constants.js';
 
 export const name = Events.InteractionCreate;
 
 type CommandModule = {
-  data: { name: string };
-  execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
+  data: {
+    name: string;
+  };
+
+  execute: (
+    interaction: ChatInputCommandInteraction
+  ) => Promise<void>;
 };
 
 export async function execute(
   interaction: Interaction,
   commands: Collection<string, CommandModule>,
-  configData: { reviewChannelId?: string }
+  configData: {
+    reviewChannelId?: string;
+  }
 ): Promise<void> {
 
-  // ───────── Slash Commands ─────────
+  // ─────────────────────────────
+  // SLASH COMMANDS
+  // ─────────────────────────────
   if (interaction.isChatInputCommand()) {
+
     const cmd = commands.get(interaction.commandName);
+
     if (!cmd) return;
 
     try {
+
       await cmd.execute(interaction);
-    } catch (err: unknown) {
+
+    } catch (err) {
+
       logger.error(String(err));
+
+      if (!interaction.replied) {
+
+        await interaction.reply({
+          content: '❌ Command error.',
+          ephemeral: true,
+        }).catch(() => null);
+      }
     }
+
     return;
   }
 
-  // ───────── Modal ─────────
+  // ─────────────────────────────
+  // MODALS
+  // ─────────────────────────────
   if (interaction.isModalSubmit()) {
+
     if (interaction.customId.startsWith('heist_modal:')) {
+
       try {
+
         await handleHeistModal(
           interaction as ModalSubmitInteraction,
           configData.reviewChannelId
         );
-      } catch (err: unknown) {
+
+      } catch (err) {
+
         logger.error(String(err));
 
         if (!interaction.replied) {
+
           await interaction.reply({
-            content: '❌ Error processing submission',
-            flags: 64,
+            content: '❌ Error processing submission.',
+            ephemeral: true,
           }).catch(() => null);
         }
       }
     }
+
     return;
   }
 
-  // ───────── Buttons only ─────────
+  // ─────────────────────────────
+  // BUTTONS
+  // ─────────────────────────────
   if (!interaction.isButton()) return;
   if (!interaction.inGuild()) return;
 
-  // 👇 ADMIN PANEL HANDLER (NEW SYSTEM)
-  if (interaction.isButton()) {
-    await handleAdminButtons(interaction);
-    return;
-  }
+  const button = interaction as ButtonInteraction;
 
   const isAdmin =
-    interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+    button.memberPermissions?.has(
+      PermissionFlagsBits.Administrator
+    ) ?? false;
 
-  const [action, id] = interaction.customId.split(':');
+  const [action, id] = button.customId.split(':');
 
-  // ───────────────────────────────
-  // 🔥 RESET SYSTEM
-  // ───────────────────────────────
-  if (interaction.customId === 'bot_reset_confirm') {
+  // ─────────────────────────────
+  // RESET SYSTEM
+  // ─────────────────────────────
+  if (button.customId === 'bot_reset_confirm') {
 
     if (!isAdmin) {
-      await interaction.reply({
-        content: "🚫 Admins only.",
-        flags: 64,
+
+      await button.reply({
+        content: '🚫 Admins only.',
+        ephemeral: true,
       });
+
       return;
     }
 
-    await interaction.reply({
+    await button.reply({
       content: '🧹 Reset started...',
-      flags: 64,
+      ephemeral: true,
     });
 
     try {
-      const rest = new REST({ version: '10' }).setToken(
-        process.env.DISCORD_TOKEN!
-      );
 
-      const clientId = process.env.DISCORD_CLIENT_ID!;
-      const logChannelId = process.env.RESET_LOG_CHANNEL_ID;
+      const rest = new REST({
+        version: '10',
+      }).setToken(process.env.DISCORD_TOKEN!);
 
+      const clientId =
+        process.env.DISCORD_CLIENT_ID!;
+
+      const logChannelId =
+        process.env.RESET_LOG_CHANNEL_ID;
+
+      // Delete commands
       await rest.put(
         Routes.applicationCommands(clientId),
-        { body: [] }
+        {
+          body: [],
+        }
       );
 
+      // Log
       if (logChannelId) {
-        const channel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
+
+        const channel =
+          await button.client.channels
+            .fetch(logChannelId)
+            .catch(() => null);
 
         if (channel && channel.isTextBased()) {
+
           await channel.send(
-            `🚨 BOT RESET BY <@${interaction.user.id}>`
+            `🚨 BOT RESET BY <@${button.user.id}>`
           );
         }
       }
 
-      await interaction.followUp({
+      await button.followUp({
         content: '✅ Reset completed.',
-        flags: 64,
+        ephemeral: true,
       });
 
     } catch (err) {
+
       logger.error(String(err));
+
+      await button.followUp({
+        content: '❌ Reset failed.',
+        ephemeral: true,
+      }).catch(() => null);
     }
 
     return;
   }
 
-  // ───────── Admin Guard ─────────
+  // ─────────────────────────────
+  // ADMIN CHECK
+  // ─────────────────────────────
   if (!isAdmin) {
-    await interaction.reply({
+
+    await button.reply({
       content: '🚫 Admins only.',
-      flags: 64,
+      ephemeral: true,
     }).catch(() => null);
+
     return;
   }
 
-  await interaction.deferReply();
+  await button.deferReply();
 
   try {
+
+    // ─────────────────────────
+    // APPROVE
+    // ─────────────────────────
     if (action === 'heist_approve') {
-      const result = await ApprovalSystem.approve(id, interaction.user.id);
-      const teammates = HeistSystem.getTeammates(result.submission);
 
-      const buffer = await generateMissionCard(
-        result.submission.heist_name,
-        result.submission.difficulty as Difficulty,
-        `<@${result.submission.submitter_id}>`,
-        teammates.map(t => `<@${t}>`),
-        result.xpAwarded,
-        result.coinsAwarded,
-        true
-      );
+      const result =
+        await ApprovalSystem.approve(
+          id,
+          button.user.id
+        );
 
-      await interaction.editReply({
-        content: `✅ Approved`,
-        files: [new AttachmentBuilder(buffer, { name: 'heist.png' })],
+      const teammates =
+        HeistSystem.getTeammates(
+          result.submission
+        );
+
+      const buffer =
+        await generateMissionCard(
+          result.submission.heist_name,
+          result.submission
+            .difficulty as Difficulty,
+          `<@${result.submission.submitter_id}>`,
+          teammates.map(
+            (t) => `<@${t}>`
+          ),
+          result.xpAwarded,
+          result.coinsAwarded,
+          true
+        );
+
+      await button.editReply({
+        content: `✅ Approved by <@${button.user.id}>`,
+        files: [
+          new AttachmentBuilder(buffer, {
+            name: 'heist.png',
+          }),
+        ],
       });
     }
 
+    // ─────────────────────────
+    // REJECT
+    // ─────────────────────────
     if (action === 'heist_reject') {
-      const submission = ApprovalSystem.reject(id, interaction.user.id);
 
-      const buffer = await generateMissionCard(
-        submission.heist_name,
-        submission.difficulty as Difficulty,
-        `<@${submission.submitter_id}>`,
-        HeistSystem.getTeammates(submission).map(t => `<@${t}>`),
-        0,
-        0,
-        false
-      );
+      const submission =
+        ApprovalSystem.reject(
+          id,
+          button.user.id
+        );
 
-      await interaction.editReply({
+      const buffer =
+        await generateMissionCard(
+          submission.heist_name,
+          submission.difficulty as Difficulty,
+          `<@${submission.submitter_id}>`,
+          HeistSystem
+            .getTeammates(submission)
+            .map((t) => `<@${t}>`),
+          0,
+          0,
+          false
+        );
+
+      await button.editReply({
         content: `❌ Rejected`,
-        files: [new AttachmentBuilder(buffer, { name: 'heist.png' })],
+        files: [
+          new AttachmentBuilder(buffer, {
+            name: 'heist.png',
+          }),
+        ],
       });
     }
 
-    await interaction.message.edit({ components: [] }).catch(() => null);
+    await button.message
+      .edit({
+        components: [],
+      })
+      .catch(() => null);
 
-  } catch (err: unknown) {
+  } catch (err) {
+
     logger.error(String(err));
-    await interaction.editReply('❌ Error').catch(() => null);
+
+    await button.editReply({
+      content: '❌ Error',
+    }).catch(() => null);
   }
 }
