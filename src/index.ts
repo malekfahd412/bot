@@ -27,9 +27,11 @@ const client = new Client({
 const commands = loadCommands();
 
 // ───────── EVENTS ─────────
-client.once(readyEvent.name, (...args) =>
-  readyEvent.execute(...(args as any))
-);
+
+// FIX: remove spread (TS2556 fix)
+client.once(readyEvent.name, () => {
+  readyEvent.execute(client as any);
+});
 
 client.on(interactionEvent.name, (interaction) =>
   interactionEvent.execute(
