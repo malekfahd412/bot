@@ -11,53 +11,45 @@ const W = 800;
 const H = 400;
 
 // =========================
-// 🔥 SET YOUR BACKGROUND PATH HERE ONLY
+// BACKGROUND IMAGE PATH
 // =========================
-const BACKGROUND_IMAGE_PATH = ''; // <- حط هنا path بتاع الصورة
+const BACKGROUND_IMAGE_PATH = 'assets/backgrounds/profile-card.png';
 
-export async function generateProfileCard(player: Player, globalRank: number): Promise<Buffer> {
+export async function generateProfileCard(player: Player, globalRank: number) {
+
   const { canvas, ctx } = makeCanvas(W, H);
 
   // =========================
-  // BACKGROUND IMAGE (NEW)
-// =========================
-  let bgLoaded = false;
+  // BACKGROUND
+  // =========================
+  const bg = await tryLoadImage(BACKGROUND_IMAGE_PATH);
 
-  if (BACKGROUND_IMAGE_PATH) {
-    const bg = await tryLoadImage(BACKGROUND_IMAGE_PATH);
-
-    if (bg) {
-      ctx.drawImage(bg as any, 0, 0, W, H);
-      bgLoaded = true;
-    }
-  }
-
-  // fallback gradient if no image
-  if (!bgLoaded) {
+  if (bg) {
+    ctx.drawImage(bg as any, 0, 0, W, H);
+  } else {
     const bgGrad = ctx.createLinearGradient(0, 0, W, H);
     bgGrad.addColorStop(0, '#0A0A14');
-    bgGrad.addColorStop(0.5, '#12121E');
     bgGrad.addColorStop(1, '#0A0A14');
-
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Dark overlay for readability (always)
+  // overlay
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
   ctx.fillRect(0, 0, W, H);
 
   drawGrid(ctx, 0, 0, W, H, 35);
 
-  // Left accent stripe (gradient)
+  // stripe
   const stripeGrad = ctx.createLinearGradient(0, 0, 0, H);
   stripeGrad.addColorStop(0, COLORS.primary);
   stripeGrad.addColorStop(1, COLORS.accent);
   ctx.fillStyle = stripeGrad;
   ctx.fillRect(0, 0, 4, H);
 
-  // Rank badge
+  // rank badge
   const rank = getRank(player.level);
+
   fillRoundedRect(ctx, W - 182, 18, 164, 36, 8, 'rgba(200,169,81,0.12)');
   strokeRoundedRect(ctx, W - 182, 18, 164, 36, 8, COLORS.primary, 1);
 
@@ -66,7 +58,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
   ctx.textAlign = 'center';
   ctx.fillText(`${rank.icon}  ${rank.name}`, W - 100, 42);
 
-  // Avatar
+  // avatar
   const avatarSize = 110;
   const avatarX = 30;
   const avatarY = 30;
@@ -80,6 +72,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
 
   if (player.avatar_url) {
     const avatar = await tryLoadImage(player.avatar_url);
+
     if (avatar) {
       ctx.save();
       ctx.beginPath();
@@ -94,7 +87,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
     drawAvatarPlaceholder(ctx, player.username, avatarX, avatarY, avatarSize);
   }
 
-  // Username
+  // username
   ctx.textAlign = 'left';
   drawGlowText(ctx, player.username, 158, 72, '#FFFFFF', COLORS.primary, 28, 'bold');
 
@@ -115,7 +108,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
   ctx.font = '11px Arial';
   ctx.fillStyle = COLORS.textMuted;
   ctx.fillText(
-    `XP  ${formatNumber(xpProgress.current)} / ${formatNumber(xpProgress.needed)}`,
+    `XP ${formatNumber(xpProgress.current)} / ${formatNumber(xpProgress.needed)}`,
     barX,
     barY + 28
   );
@@ -124,14 +117,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
   ctx.fillStyle = COLORS.primary;
   ctx.fillText(`${Math.round(xpProgress.percent * 100)}%`, barX + barW, barY + 28);
 
-  // Divider
-  ctx.strokeStyle = 'rgba(200,169,81,0.15)';
-  ctx.beginPath();
-  ctx.moveTo(20, 160);
-  ctx.lineTo(W - 20, 160);
-  ctx.stroke();
-
-  // Stats
+  // stats
   const stats = [
     { label: 'COINS', value: formatCoins(player.coins), color: COLORS.gold },
     { label: 'TOTAL HEISTS', value: String(player.total_heists), color: '#FFFFFF' },
@@ -166,7 +152,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
     ctx.fillText(stat.label, sx + statW / 2, sy + 58);
   });
 
-  // Footer
+  // footer
   fillRoundedRect(ctx, 0, H - 28, W, 28, 0, 'rgba(200,169,81,0.07)');
   ctx.font = '11px Arial';
   ctx.fillStyle = 'rgba(200,169,81,0.4)';
