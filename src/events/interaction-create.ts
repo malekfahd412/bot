@@ -40,6 +40,13 @@ export async function execute(
       await cmd.execute(interaction);
     } catch (err) {
       logger.error(String(err));
+
+      if (!interaction.replied) {
+        await interaction.reply({
+          content: '❌ Error executing command',
+          ephemeral: true,
+        }).catch(() => null);
+      }
     }
     return;
   }
@@ -59,7 +66,7 @@ export async function execute(
     return;
   }
 
-  // ───────── BUTTON ONLY ─────────
+  // ───────── BUTTON ─────────
   if (!interaction.isButton()) return;
   if (!interaction.inGuild()) return;
 
@@ -68,11 +75,8 @@ export async function execute(
   const isAdmin =
     button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
 
-  // ───────── ADMIN PANEL HANDLER ─────────
-  if (button.customId.startsWith('admin:')) {
-    // لو عندك admin system
-    return;
-  }
+  // ───────── ADMIN PANEL ─────────
+  if (button.customId.startsWith('admin:')) return;
 
   // ───────── RESET ─────────
   if (button.customId === 'bot_reset_confirm') {
@@ -119,13 +123,17 @@ export async function execute(
     return;
   }
 
-  await button.deferReply();
+  const [action, id] = button.customId.split(':');
 
   try {
 
-    const [action, id] = button.customId.split(':');
+    let response;
 
+    // =========================
+    // APPROVE HEIST
+    // =========================
     if (action === 'heist_approve') {
+
       const result = await ApprovalSystem.approve(id, button.user.id);
 
       const buffer = await generateMissionCard(
@@ -138,13 +146,18 @@ export async function execute(
         true
       );
 
-      await button.editReply({
-        content: '✅ Approved',
+      response = {
+        content: `✅ Approved by <@${button.user.id}>`,
         files: [new AttachmentBuilder(buffer, { name: 'heist.png' })],
-      });
+        components: []
+      };
     }
 
-    if (action === 'heist_reject') {
+    // =========================
+    // REJECT HEIST
+    // =========================
+    else if (action === 'heist_reject') {
+
       const submission = ApprovalSystem.reject(id, button.user.id);
 
       const buffer = await generateMissionCard(
@@ -157,14 +170,31 @@ export async function execute(
         false
       );
 
-      await button.editReply({
-        content: '❌ Rejected',
+      response = {
+        content: `❌ Rejected by <@${button.user.id}>`,
         files: [new AttachmentBuilder(buffer, { name: 'heist.png' })],
-      });
+        components: []
+      };
     }
+
+    // لو مفيش action معروف
+    if (!response) return;
+
+    // update واحدة فقط (بدون return problems)
+    await button.update(response);
 
   } catch (err) {
     logger.error(String(err));
-    await button.editReply('❌ Error').catch(() => null);
+
+    try {
+      if (button.deferred || button.replied) {
+        await button.editReply('❌ Error').catch(() => null);
+      } else {
+        await button.reply({
+          content: '❌ Error',
+          ephemeral: true,
+        }).catch(() => null);
+      }
+    } catch {}
   }
 }

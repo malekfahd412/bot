@@ -41,16 +41,16 @@ exports.DIFFICULTY_CONFIG = {
         multiplier: 2.0,
     },
 };
-exports.RANK_THRESHOLDS = [
-    { name: 'CIVILIAN', minLevel: 1, color: '#8B8FA8', icon: '👤' },
-    { name: 'ASSOCIATE', minLevel: 5, color: '#00D26A', icon: '🔫' },
-    { name: 'SOLDIER', minLevel: 10, color: '#3498DB', icon: '⚔️' },
-    { name: 'ENFORCER', minLevel: 20, color: '#E67E22', icon: '🛡️' },
-    { name: 'LIEUTENANT', minLevel: 30, color: '#9B59B6', icon: '🎯' },
-    { name: 'CAPTAIN', minLevel: 40, color: '#E94560', icon: '💀' },
-    { name: 'UNDERBOSS', minLevel: 60, color: '#C8A951', icon: '👑' },
-    { name: 'BOSS', minLevel: 80, color: '#FFD700', icon: '🏆' },
-    { name: 'KINGPIN', minLevel: 100, color: '#E5E4E2', icon: '💎' },
+export const RANK_THRESHOLDS = [
+  { name: 'CIVILIAN', minLevel: 1, color: '#8B8FA8', icon: '▣' },
+  { name: 'ASSOCIATE', minLevel: 5, color: '#00D26A', icon: '◈' },
+  { name: 'SOLDIER', minLevel: 10, color: '#3498DB', icon: '⬢' },
+  { name: 'ENFORCER', minLevel: 20, color: '#E67E22', icon: '⬣' },
+  { name: 'LIEUTENANT', minLevel: 30, color: '#9B59B6', icon: '✦' },
+  { name: 'CAPTAIN', minLevel: 40, color: '#E94560', icon: '✪' },
+  { name: 'UNDERBOSS', minLevel: 60, color: '#C8A951', icon: '❖' },
+  { name: 'BOSS', minLevel: 80, color: '#FFD700', icon: '✹' },
+  { name: 'KINGPIN', minLevel: 100, color: '#E5E4E2', icon: '⬡' },
 ];
 exports.XP_PER_LEVEL = 500;
 exports.DAILY_REWARD = {

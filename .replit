@@ -20,8 +20,8 @@ args = "Start application"
 
 [[workflows.workflow]]
 name = "Start application"
-author = "agent"
 mode = "sequential"
+author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

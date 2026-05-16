@@ -33,35 +33,41 @@ export function getDB(): Database.Database {
 
 function initSchema(database: Database.Database): void {
   database.exec(`
-    CREATE TABLE IF NOT EXISTS players (
-      id TEXT PRIMARY KEY,
-      discord_id TEXT UNIQUE,
-      username TEXT,
-      avatar_url TEXT,
-      xp INTEGER DEFAULT 0,
-      level INTEGER DEFAULT 1,
-      coins INTEGER DEFAULT 1000,
-      crew_id TEXT,
-      total_earnings INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+    CREATE TABLE IF NOT EXISTS heist_submissions (
+  id TEXT PRIMARY KEY,
+  submitter_id TEXT,
+  heist_name TEXT,
+  difficulty TEXT,
+  teammates TEXT,
+  proof_url TEXT,
+  notes TEXT,
+  status TEXT DEFAULT 'pending',
+  reviewer_id TEXT,
+  reviewer_note TEXT,
+  reviewed_at TEXT,
+  xp_awarded INTEGER,
+  coins_awarded INTEGER,
+  review_message_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 
     CREATE TABLE IF NOT EXISTS heist_submissions (
-      id TEXT PRIMARY KEY,
-      submitter_id TEXT,
-      heist_name TEXT,
-      difficulty TEXT,
-      teammates TEXT,
-      proof_url TEXT,
-      notes TEXT,
-      status TEXT DEFAULT 'pending',
-      reviewer_id TEXT,
-      reviewer_note TEXT,
-      xp_awarded INTEGER,
-      coins_awarded INTEGER,
-      review_message_id TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+  id TEXT PRIMARY KEY,
+  submitter_id TEXT,
+  heist_name TEXT,
+  difficulty TEXT,
+  teammates TEXT,
+  proof_url TEXT,
+  notes TEXT,
+  status TEXT DEFAULT 'pending',
+  reviewer_id TEXT,
+  reviewer_note TEXT,
+  reviewed_at TEXT,
+  xp_awarded INTEGER,
+  coins_awarded INTEGER,
+  review_message_id TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 
     CREATE TABLE IF NOT EXISTS crews (
       id TEXT PRIMARY KEY,
@@ -214,7 +220,11 @@ export const HeistDB = {
     getDB()
       .prepare(`
         UPDATE heist_submissions
-        SET status='approved', reviewer_id=?, reviewer_note=?
+        SET
+          status='approved',
+          reviewer_id=?,
+          reviewer_note=?,
+          reviewed_at=datetime('now', '+3 hours')
         WHERE id=?
       `)
       .run(reviewerId, note ?? null, id);
@@ -224,7 +234,11 @@ export const HeistDB = {
     getDB()
       .prepare(`
         UPDATE heist_submissions
-        SET status='rejected', reviewer_id=?, reviewer_note=?
+        SET
+          status='rejected',
+          reviewer_id=?,
+          reviewer_note=?,
+          reviewed_at=datetime('now', '+3 hours')
         WHERE id=?
       `)
       .run(reviewerId, note ?? null, id);
