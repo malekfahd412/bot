@@ -15,7 +15,7 @@ import { generateMissionCard } from '../canvas/mission-card.js';
 import { handleCrewJoin } from '../interactions/crewJoin.js';
 import { routeCrewButton, routeCrewSelect, routeCrewModal } from '../crew-interactions/router.js';
 import { routeShopButton, routeShopSelect, routeShopModal } from '../shop-interactions/router.js';
-import { routeWarEventButton } from '../event-interactions/router.js';
+import { routeWarEventButton, routeEventPanelButton, routeEventPanelSelect, routeEventPanelModal } from '../event-interactions/router.js';
 import type { Difficulty } from '../utils/constants.js';
 
 export const name = Events.InteractionCreate;
@@ -50,6 +50,7 @@ export async function execute(
   if (interaction.isModalSubmit()) {
     const modal = interaction as ModalSubmitInteraction;
 
+    if (await routeEventPanelModal(modal)) return;
     if (await routeShopModal(modal)) return;
     if (await routeCrewModal(modal)) return;
 
@@ -67,6 +68,7 @@ export async function execute(
   if (interaction.isStringSelectMenu()) {
     const select = interaction as StringSelectMenuInteraction;
 
+    if (await routeEventPanelSelect(select)) return;
     if (await routeShopSelect(select)) return;
     if (await routeCrewSelect(select)) return;
 
@@ -81,7 +83,17 @@ export async function execute(
   const customId = button.customId;
   const [action] = customId.split(':');
 
-  /* ─── WAR EVENT BUTTONS ─── */
+  /* ─── EVENT PANEL BUTTONS (admin) ─── */
+  if (customId.startsWith('evp:')) {
+    try {
+      await routeEventPanelButton(button);
+    } catch (err) {
+      logger.error('Event panel button error:', err);
+    }
+    return;
+  }
+
+  /* ─── WAR EVENT BUTTONS (player announcement) ─── */
   if (customId.startsWith('war_event:')) {
     try {
       await routeWarEventButton(button);

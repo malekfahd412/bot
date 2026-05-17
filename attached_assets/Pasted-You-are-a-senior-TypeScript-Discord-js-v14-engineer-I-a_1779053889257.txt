@@ -1,0 +1,131 @@
+You are a senior TypeScript + Discord.js v14 engineer.
+
+I already have a GTA-style RPG bot with crew system and shop system using buttons, embeds, and panels.
+
+I want to REPLACE the event system commands with a FULL UI PANEL SYSTEM.
+
+━━━━━━━━━━━━━━━━━━━
+🎯 GOAL
+━━━━━━━━━━━━━━━━━━━
+
+Build a Discord-based EVENT CONTROL PANEL (no slash commands for event usage except admin open panel).
+
+Everything must be controlled via:
+- Buttons
+- Select menus
+- Embeds
+- Interactive panels
+
+━━━━━━━━━━━━━━━━━━━
+🧠 CORE CONCEPT
+━━━━━━━━━━━━━━━━━━━
+
+The Event system is NOT command-driven.
+
+It is a UI dashboard like:
+
+🚨 EVENT CONTROL PANEL
+
+Admins open ONE panel and control everything from it.
+
+━━━━━━━━━━━━━━━━━━━
+📦 PANEL STRUCTURE
+━━━━━━━━━━━━━━━━━━━
+
+Main Panel Embed:
+
+🚨 EVENT CONTROL CENTER
+
+Buttons:
+
+[🟢 Start Event]
+[🔴 End Event]
+[📊 Live Leaderboard]
+[👥 Manage Crews]
+[➕ Add Points]
+[📡 Broadcast Update]
+[⚙️ Settings]
+
+━━━━━━━━━━━━━━━━━━━
+⚔️ FEATURES INSIDE PANEL
+━━━━━━━━━━━━━━━━━━━
+
+1. START EVENT
+- Opens modal:
+  - Event Title
+  - Description
+  - Type (Heist War / Territory / Special Ops)
+
+2. LIVE LEADERBOARD
+- Shows crews ranked by score
+- Auto refresh embed (edit message not spam)
+
+3. MANAGE CREWS
+- Select menu:
+  - add/remove crew from event
+  - view crew stats
+
+4. ADD POINTS
+- Select crew → input points → reason
+- updates DB instantly
+
+5. BROADCAST UPDATE
+- sends announcement to #live-events channel
+- styled GTA alert embed
+
+6. END EVENT
+- calculates winner crew
+- distributes rewards
+- archives event data
+
+━━━━━━━━━━━━━━━━━━━
+📊 DATABASE REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━
+
+Use existing DB or extend with:
+
+EVENTS
+EVENT_TEAMS
+EVENT_PARTICIPANTS
+EVENT_LOGS
+
+Make sure:
+- event state is persistent
+- panel always reflects DB state
+
+━━━━━━━━━━━━━━━━━━━
+🧠 IMPORTANT RULES
+━━━━━━━━━━━━━━━━━━━
+
+- NO slash command event flow
+- ONLY ONE PANEL MESSAGE controls everything
+- Must support multiple active crews
+- Must prevent duplicate event creation
+- Must handle concurrency safely
+- Must be fully TypeScript typed (no "any")
+
+━━━━━━━━━━━━━━━━━━━
+🎮 UX REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━
+
+- GTA criminal theme embeds
+- glowing gold/red UI style
+- clear admin hierarchy
+- instant feedback after button press
+- no spam messages, only edits
+
+━━━━━━━━━━━━━━━━━━━
+⚙️ OUTPUT REQUIRED
+━━━━━━━━━━━━━━━━━━━
+
+Return:
+- EventPanelManager class
+- Discord button handlers
+- Modal handlers
+- DB service updates
+- Live leaderboard updater
+- Integration instructions
+
+Make it production-ready and modular.
+
+This system must match high-level Discord bot architecture standards.
