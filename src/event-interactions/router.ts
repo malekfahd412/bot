@@ -3,17 +3,17 @@ import {
   PermissionFlagsBits, EmbedBuilder, ColorResolvable,
 } from 'discord.js';
 import { buildHistoryEmbed, buildHistoryRows } from '../commands/event.js';
-import { WarEventDB, EventTeamDB, EventParticipantDB, CrewDB } from '../database/db.js';
+import { WarEventDB, EventTeamDB, EventParticipantDB, EventLogDB, CrewDB } from '../database/db.js';
 import { WarEventManager, buildLeaderboardEmbed, buildEventEndEmbed } from '../systems/war-event.js';
 import {
   buildControlPanelEmbed, buildControlPanelRows, buildConfirmEndRows,
-  buildAddPointsRows, buildManageCrewsRows, buildAnnouncementEmbed, buildAnnouncementRows,
+  buildAddPointsRows, buildManageCrewsRows, buildEnterPointsRows,
+  buildAnnouncementEmbed, buildAnnouncementRows,
   buildStartEventModal, buildAddPointsModal, refreshPanelMessage,
 } from '../event-panels/control-panel.js';
 import { logger } from '../utils/logger.js';
 
 const GTA_GOLD = 0xFFD700 as ColorResolvable;
-const GTA_RED  = 0xFF6B35 as ColorResolvable;
 
 /* ─────────────────────────────────────────────────────────────────────────
    HELPERS
@@ -69,66 +69,62 @@ export async function routeEventPanelButton(interaction: ButtonInteraction): Pro
     return true;
   }
 
-  /* ── Live Leaderboard ── */
+  /* ── Live Leaderboard (ephemeral) ── */
   if (action === 'leaderboard') {
     const event = WarEventDB.getActive();
-    if (!event) {
-      await interaction.reply({ content: '❌ No active event.', ephemeral: true });
-      return true;
-    }
+    if (!event) { await interaction.reply({ content: '❌ No active event.', ephemeral: true }); return true; }
     const teams = EventTeamDB.getTeams(event.id);
-    const embed = buildLeaderboardEmbed(event, teams);
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [buildLeaderboardEmbed(event, teams)], ephemeral: true });
     return true;
   }
 
   /* ── Add Points → show crew select ── */
   if (action === 'add_points') {
     const event = WarEventDB.getActive();
-    if (!event) {
-      await interaction.reply({ content: '❌ No active event.', ephemeral: true });
-      return true;
-    }
+    if (!event) { await interaction.reply({ content: '❌ No active event.', ephemeral: true }); return true; }
     const teams = EventTeamDB.getTeams(event.id);
-    if (teams.length === 0) {
-      await interaction.reply({ content: '❌ No crews have joined this event yet.', ephemeral: true });
-      return true;
-    }
+    if (teams.length === 0) { await interaction.reply({ content: '❌ No crews have joined yet.', ephemeral: true }); return true; }
+
     const ref = panelRef(interaction);
     const embed = buildControlPanelEmbed(event, teams);
-    embed.setDescription(embed.data.description + '\n\n> **⬇️ Select a crew below to add/deduct points:**');
+    embed.setDescription((embed.data.description ?? '') + '\n\n> **⬇️ Select a crew to add or deduct points:**');
     await interaction.update({ embeds: [embed], components: buildAddPointsRows(teams, ref) });
+    return true;
+  }
+
+  /* ── Points Enter (crew selected via select → this button → modal) ── */
+  if (action.startsWith('pts_enter:')) {
+    const crewId = action.slice('pts_enter:'.length);
+    const event = WarEventDB.getActive();
+    if (!event) { await interaction.reply({ content: '❌ No active event.', ephemeral: true }); return true; }
+    const team = EventTeamDB.findTeam(event.id, crewId);
+    if (!team) { await interaction.reply({ content: '❌ Crew not found in event.', ephemeral: true }); return true; }
+    await interaction.showModal(buildAddPointsModal(crewId, team.crew_name, panelRef(interaction)));
     return true;
   }
 
   /* ── Manage Crews → show crew select ── */
   if (action === 'manage_crews') {
     const event = WarEventDB.getActive();
-    if (!event) {
-      await interaction.reply({ content: '❌ No active event.', ephemeral: true });
-      return true;
-    }
+    if (!event) { await interaction.reply({ content: '❌ No active event.', ephemeral: true }); return true; }
     const teams = EventTeamDB.getTeams(event.id);
     const embed = buildControlPanelEmbed(event, teams);
-    embed.setDescription(embed.data.description + '\n\n> **⬇️ Select a crew below to inspect their stats:**');
+    embed.setDescription((embed.data.description ?? '') + '\n\n> **⬇️ Select a crew to inspect their stats:**');
     await interaction.update({ embeds: [embed], components: buildManageCrewsRows(teams, panelRef(interaction)) });
     return true;
   }
 
-  /* ── Broadcast Update ── */
+  /* ── Broadcast live update to announcement channel ── */
   if (action === 'broadcast') {
     const event = WarEventDB.getActive();
-    if (!event) {
-      await interaction.reply({ content: '❌ No active event to broadcast.', ephemeral: true });
-      return true;
-    }
+    if (!event) { await interaction.reply({ content: '❌ No active event to broadcast.', ephemeral: true }); return true; }
     const teams = EventTeamDB.getTeams(event.id);
 
     const broadcastEmbed = new EmbedBuilder()
-      .setColor(GTA_RED)
+      .setColor(0xFF6B35 as ColorResolvable)
       .setTitle('📡 LIVE EVENT UPDATE')
       .setDescription(
-        `**${event.title}** — Operation Status: 🟢 **ACTIVE**\n\n` +
+        `**${event.title}** — Status: 🟢 **ACTIVE**\n\n` +
         [...teams].sort((a, b) => b.score - a.score).slice(0, 5).map((t, i) => {
           const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`;
           return `${medal} **[${t.crew_tag}]** ${t.crew_name} — \`${t.score} pts\``;
@@ -137,14 +133,17 @@ export async function routeEventPanelButton(interaction: ButtonInteraction): Pro
       .setFooter({ text: `Broadcast by admin • ${new Date().toLocaleTimeString()}` })
       .setTimestamp();
 
+    let sent = false;
     if (event.announcement_channel_id) {
       try {
         const ch = await interaction.client.channels.fetch(event.announcement_channel_id);
-        if (ch?.isTextBased()) await (ch as import('discord.js').TextChannel).send({ embeds: [broadcastEmbed] });
-      } catch {
-        await interaction.channel?.send({ embeds: [broadcastEmbed] });
-      }
-    } else {
+        if (ch?.isTextBased()) {
+          await (ch as import('discord.js').TextChannel).send({ embeds: [broadcastEmbed] });
+          sent = true;
+        }
+      } catch { /* fall through */ }
+    }
+    if (!sent) {
       await interaction.channel?.send({ embeds: [broadcastEmbed] });
     }
 
@@ -155,14 +154,11 @@ export async function routeEventPanelButton(interaction: ButtonInteraction): Pro
   /* ── End Event → show confirm ── */
   if (action === 'end') {
     const event = WarEventDB.getActive();
-    if (!event) {
-      await interaction.reply({ content: '❌ No active event to end.', ephemeral: true });
-      return true;
-    }
+    if (!event) { await interaction.reply({ content: '❌ No active event to end.', ephemeral: true }); return true; }
     const teams = EventTeamDB.getTeams(event.id);
     const embed = buildControlPanelEmbed(event, teams);
     embed.setDescription(
-      embed.data.description +
+      (embed.data.description ?? '') +
       '\n\n> ⚠️ **Are you sure you want to end this event?**\n' +
       '> This will calculate the winner and distribute all rewards.'
     );
@@ -173,10 +169,7 @@ export async function routeEventPanelButton(interaction: ButtonInteraction): Pro
   /* ── Confirm End Event ── */
   if (action === 'end_confirm') {
     const event = WarEventDB.getActive();
-    if (!event) {
-      await interaction.reply({ content: '❌ No active event.', ephemeral: true });
-      return true;
-    }
+    if (!event) { await interaction.reply({ content: '❌ No active event.', ephemeral: true }); return true; }
 
     const result = WarEventManager.endEvent(event.id, interaction.client);
     if (result.ok === false) {
@@ -184,24 +177,14 @@ export async function routeEventPanelButton(interaction: ButtonInteraction): Pro
       return true;
     }
 
-    const teams = EventTeamDB.getTeams(event.id);
-    const finalEmbed = buildEventEndEmbed({ ...event, status: 'ended', ended_at: new Date().toISOString() }, teams);
+    logger.info(`War event ended via panel: "${event.title}" — winner: ${result.winner?.crew_name ?? 'none'}, rewarded: ${result.rewardedCount}`);
 
-    if (event.announcement_channel_id) {
-      try {
-        const ch = await interaction.client.channels.fetch(event.announcement_channel_id);
-        if (ch?.isTextBased()) {
-          await (ch as import('discord.js').TextChannel).send({ embeds: [finalEmbed] });
-        }
-      } catch { /* ignore */ }
-    }
-
+    // endEvent() already edits the announcement message to the final embed — no duplicate send needed.
     const noEvent = WarEventDB.getActive();
     await interaction.update({
       embeds: [buildControlPanelEmbed(noEvent, [])],
       components: buildControlPanelRows(noEvent),
     });
-    logger.info(`War event ended via panel: "${event.title}" — winner: ${result.winner?.crew_name ?? 'none'}, rewarded: ${result.rewardedCount}`);
     return true;
   }
 
@@ -221,9 +204,10 @@ export async function routeEventPanelSelect(interaction: StringSelectMenuInterac
     return true;
   }
 
-  /* ── Crew selected for add points → open modal ── */
+  /* ── Crew selected for add points → update panel to show "Enter Points" button ──
+     NOTE: Discord does NOT allow showing a modal from a select menu interaction.
+     We update the panel to show a dedicated button the admin clicks to open the modal. */
   if (id.startsWith('evp_sel:add_points:')) {
-    const ref = id.slice('evp_sel:add_points:'.length);
     const crewId = interaction.values[0];
     const event = WarEventDB.getActive();
     if (!event) { await interaction.reply({ content: '❌ No active event.', ephemeral: true }); return true; }
@@ -231,11 +215,18 @@ export async function routeEventPanelSelect(interaction: StringSelectMenuInterac
     const team = EventTeamDB.findTeam(event.id, crewId);
     if (!team) { await interaction.reply({ content: '❌ Crew not found in event.', ephemeral: true }); return true; }
 
-    await interaction.showModal(buildAddPointsModal(crewId, team.crew_name, ref));
+    const teams = EventTeamDB.getTeams(event.id);
+    const embed = buildControlPanelEmbed(event, teams);
+    embed.setDescription(
+      (embed.data.description ?? '') +
+      `\n\n> 🎯 Selected: **[${team.crew_tag}] ${team.crew_name}** — current score: \`${team.score} pts\`\n` +
+      `> Click the button below to enter a point adjustment.`
+    );
+    await interaction.update({ embeds: [embed], components: buildEnterPointsRows(team) });
     return true;
   }
 
-  /* ── Crew selected for manage → show stats ── */
+  /* ── Crew selected for manage → show stats (ephemeral reply) ── */
   if (id.startsWith('evp_sel:manage_crew:')) {
     const crewId = interaction.values[0];
     const event = WarEventDB.getActive();
@@ -251,14 +242,14 @@ export async function routeEventPanelSelect(interaction: StringSelectMenuInterac
       .setColor(GTA_GOLD)
       .setTitle(`📋 Crew Stats — [${team.crew_tag}] ${team.crew_name}`)
       .addFields(
-        { name: '🏆 Score',           value: `\`${team.score} pts\``,          inline: true },
-        { name: '✅ Heist Success',   value: `\`${team.heists_success}\``,      inline: true },
-        { name: '❌ Heist Failed',    value: `\`${team.heists_failed}\``,       inline: true },
-        { name: '⭐ Bonus Obj.',      value: `\`${team.bonus_objectives}\``,    inline: true },
-        { name: '👥 Members in Event',value: `\`${participants.length}\``,      inline: true },
-        { name: '📊 Crew Level',      value: `\`${crew?.level ?? '?'}\``,       inline: true },
+        { name: '🏆 Score',            value: `\`${team.score} pts\``,       inline: true },
+        { name: '✅ Heist Success',    value: `\`${team.heists_success}\``,   inline: true },
+        { name: '❌ Heist Failed',     value: `\`${team.heists_failed}\``,    inline: true },
+        { name: '⭐ Bonus Obj.',       value: `\`${team.bonus_objectives}\``, inline: true },
+        { name: '👥 Members in Event', value: `\`${participants.length}\``,   inline: true },
+        { name: '📊 Crew Level',       value: `\`${crew?.level ?? '?'}\``,    inline: true },
       )
-      .setFooter({ text: 'Crew inspection • Data is live from DB' });
+      .setFooter({ text: 'Live data from DB • Click ← Back on the panel to return' });
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
     return true;
@@ -287,13 +278,12 @@ export async function routeEventPanelModal(interaction: ModalSubmitInteraction):
 
     await interaction.deferReply({ ephemeral: true });
 
-    const title      = interaction.fields.getTextInputValue('ev_title').trim();
-    const rewardXp   = Math.max(0, parseInt(interaction.fields.getTextInputValue('ev_reward_xp') || '500', 10) || 500);
+    const title       = interaction.fields.getTextInputValue('ev_title').trim();
+    const rewardXp    = Math.max(0, parseInt(interaction.fields.getTextInputValue('ev_reward_xp')    || '500',  10) || 500);
     const rewardCoins = Math.max(0, parseInt(interaction.fields.getTextInputValue('ev_reward_coins') || '5000', 10) || 5000);
 
     try {
       const event = WarEventManager.create(title, rewardXp, rewardCoins, interaction.user.id);
-      WarEventDB.setAnnouncementMessage(event.id, messageId, channelId);
 
       const annEmbed = buildAnnouncementEmbed(event, []);
       const annRows  = buildAnnouncementRows(event.id);
@@ -303,7 +293,7 @@ export async function routeEventPanelModal(interaction: ModalSubmitInteraction):
         WarEventDB.setAnnouncementMessage(event.id, annMsg.id, annMsg.channelId);
       }
 
-      await interaction.editReply(`✅ **${title}** is now live! Public announcement sent.`);
+      await interaction.editReply(`✅ **${title}** is now live! Public announcement sent in this channel.`);
       void refreshPanelMessage(interaction.client, channelId, messageId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -315,44 +305,50 @@ export async function routeEventPanelModal(interaction: ModalSubmitInteraction):
   /* ── Add Points modal ── */
   if (id.startsWith('evp_mod:add_points:')) {
     const rest = id.slice('evp_mod:add_points:'.length);
-    const refIdx = rest.indexOf(':', rest.indexOf(':') + 1);
-    const crewId = rest.slice(0, refIdx === -1 ? rest.length : rest.lastIndexOf(':', rest.length - 20 - 1));
 
-    const parts = rest.split(':');
+    // Format: <crewId (UUID, no colons)>:<channelId>:<messageId>
+    const parts      = rest.split(':');
     const messageId  = parts[parts.length - 1];
     const channelId  = parts[parts.length - 2];
-    const crewIdParsed = parts.slice(0, parts.length - 2).join(':');
+    const crewId     = parts.slice(0, parts.length - 2).join(':');
 
     await interaction.deferReply({ ephemeral: true });
 
     const event = WarEventDB.getActive();
     if (!event) { await interaction.editReply('❌ No active event.'); return true; }
 
+    const team = EventTeamDB.findTeam(event.id, crewId);
+    if (!team) { await interaction.editReply('❌ Crew not found in this event.'); return true; }
+
     const ptsStr = interaction.fields.getTextInputValue('pts_value').trim().replace(/\s+/g, '');
     const reason = interaction.fields.getTextInputValue('pts_reason').trim() || undefined;
-    const pts = parseInt(ptsStr, 10);
+    const pts    = parseInt(ptsStr, 10);
 
-    if (isNaN(pts)) {
-      await interaction.editReply('❌ Invalid points value. Use a number like `100` or `-50`.');
+    if (isNaN(pts) || pts === 0) {
+      await interaction.editReply('❌ Enter a non-zero number like `100` or `-50`.');
       return true;
     }
 
-    const team = EventTeamDB.findTeam(event.id, crewIdParsed);
-    if (!team) { await interaction.editReply('❌ Crew not found in event.'); return true; }
-
-    const field = pts < 0 ? 'heists_failed' : pts >= 150 ? 'heists_success' : 'heists_success';
-    EventTeamDB.addScore(event.id, crewIdParsed, pts, field as 'heists_success' | 'heists_failed' | 'bonus_objectives');
-    const updated = EventTeamDB.findTeam(event.id, crewIdParsed)!;
+    // Use raw score update — this is an admin manual adjustment, not a heist action.
+    // heists_success / heists_failed / bonus_objectives counts are only bumped via logScore().
+    EventTeamDB.addRawScore(event.id, crewId, pts);
+    const updated = EventTeamDB.findTeam(event.id, crewId)!;
 
     const sign = pts > 0 ? '+' : '';
+    const reasonNote = reason ? ` — *${reason}*` : '';
+    const logMsg = `🔧 Admin <@${interaction.user.id}> adjusted **[${team.crew_tag}] ${team.crew_name}**: \`${sign}${pts} pts\`${reasonNote}`;
+    EventLogDB.log(event.id, logMsg, crewId, pts);
+
     await interaction.editReply(
-      `${pts >= 0 ? '✅' : '❌'} **${sign}${pts} pts** added to **[${team.crew_tag}] ${team.crew_name}**.\n` +
-      `New score: \`${updated.score} pts\`` +
-      (reason ? `\nNote: *${reason}*` : '')
+      `${pts > 0 ? '✅' : '🔻'} **${sign}${pts} pts** applied to **[${team.crew_tag}] ${team.crew_name}**.\n` +
+      `New score: \`${updated.score} pts\`` + (reason ? `\n> 📝 *${reason}*` : '')
     );
 
     void refreshPanelMessage(interaction.client, channelId, messageId);
-    void WarEventManager.updateAnnouncementMessage(event, interaction.client);
+    void WarEventManager.updateAnnouncementMessage(
+      WarEventDB.findById(event.id) ?? event,
+      interaction.client
+    );
     return true;
   }
 
@@ -383,7 +379,6 @@ export async function routeEventHistoryButton(interaction: ButtonInteraction): P
     if (!event) { await interaction.deferUpdate(); return true; }
 
     const teams = EventTeamDB.getTeams(event.id);
-
     await interaction.update({
       embeds: [buildHistoryEmbed(event, teams, page, total)],
       components: buildHistoryRows(page, total),
@@ -402,7 +397,7 @@ export async function routeWarEventButton(interaction: ButtonInteraction): Promi
   const id = interaction.customId;
   if (!id.startsWith('war_event:')) return false;
 
-  const parts  = id.split(':');
+  const parts   = id.split(':');
   const action  = parts[1];
   const eventId = parts[2];
 
@@ -427,7 +422,7 @@ export async function routeWarEventButton(interaction: ButtonInteraction): Promi
       if (event) void WarEventManager.updateAnnouncementMessage(event, interaction.client);
 
       await interaction.reply({
-        content: `✅ You've joined **${event?.title ?? 'Crew War'}** representing **${result.crewName}**! Good luck out there.`,
+        content: `✅ You've joined **${event?.title ?? 'the event'}** representing **${result.crewName}**! Good luck out there.`,
         ephemeral: true,
       });
     } catch (err) {

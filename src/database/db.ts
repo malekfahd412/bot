@@ -925,6 +925,12 @@ export const EventTeamDB = {
       `UPDATE event_teams SET score = score + ?, ${field} = ${field} + 1 WHERE event_id = ? AND crew_id = ?`
     ).run(delta, eventId, crewId);
   },
+
+  addRawScore(eventId: string, crewId: string, delta: number): void {
+    getDB().prepare(
+      'UPDATE event_teams SET score = score + ? WHERE event_id = ? AND crew_id = ?'
+    ).run(delta, eventId, crewId);
+  },
 };
 
 /* ─────────────────────────── EVENT PARTICIPANT DB ─────────────────────────── */

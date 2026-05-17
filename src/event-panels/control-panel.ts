@@ -124,6 +124,25 @@ export function buildAddPointsRows(teams: EventTeam[], panelRef: string): AnyRow
   ];
 }
 
+export function buildEnterPointsRows(team: EventTeam): AnyRow[] {
+  return [
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`evp:pts_enter:${team.crew_id}`)
+        .setLabel(`✏️ Enter Points — [${team.crew_tag}] ${team.crew_name}`.slice(0, 80))
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('evp:add_points')
+        .setLabel('← Choose Different Crew')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('evp:refresh')
+        .setLabel('✖ Cancel')
+        .setStyle(ButtonStyle.Danger),
+    ),
+  ];
+}
+
 export function buildManageCrewsRows(teams: EventTeam[], panelRef: string): AnyRow[] {
   if (teams.length === 0) {
     return [
