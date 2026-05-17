@@ -8,7 +8,7 @@ import { data as daily } from './commands/daily.js';
 import { data as leaderboard } from './commands/leaderboard.js';
 import { data as stats } from './commands/stats.js';
 import { data as heistLog } from './commands/heist-log.js';
-import { data as crew } from './commands/crew.js';
+import { data as crew } from './commands/crew-dashboard.js';
 import { data as inventory } from './commands/inventory.js';
 import { data as admin } from './commands/admin.js';
 
