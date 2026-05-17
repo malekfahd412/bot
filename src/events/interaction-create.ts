@@ -16,6 +16,10 @@ import { ApprovalSystem } from '../systems/approval.js';
 import { HeistSystem } from '../systems/heist.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
+
+import { handleCrewSelect } from '../interactions/crewSelect.js';
+import { handleCrewJoin } from '../interactions/crewJoin.js';
+
 import type { Difficulty } from '../utils/constants.js';
 
 export const name = Events.InteractionCreate;
@@ -66,6 +70,18 @@ export async function execute(
     return;
   }
 
+  // ───────── SELECT MENU (CREW) ─────────
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId === 'crew_select') {
+      try {
+        await handleCrewSelect(interaction);
+      } catch (err) {
+        logger.error(String(err));
+      }
+    }
+    return;
+  }
+
   // ───────── BUTTON ─────────
   if (!interaction.isButton()) return;
   if (!interaction.inGuild()) return;
@@ -74,6 +90,21 @@ export async function execute(
 
   const isAdmin =
     button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
+
+  // ───────── CREW BUTTONS ─────────
+  if (button.customId.startsWith('crew_join_')) {
+    try {
+      await handleCrewJoin(button);
+    } catch (err) {
+      logger.error(String(err));
+
+      await button.reply({
+        content: '❌ Failed to join crew',
+        ephemeral: true,
+      }).catch(() => null);
+    }
+    return;
+  }
 
   // ───────── ADMIN PANEL ─────────
   if (button.customId.startsWith('admin:')) return;
@@ -177,10 +208,8 @@ export async function execute(
       };
     }
 
-    // لو مفيش action معروف
     if (!response) return;
 
-    // update واحدة فقط (بدون return problems)
     await button.update(response);
 
   } catch (err) {
