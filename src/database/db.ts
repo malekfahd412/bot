@@ -330,12 +330,13 @@ export const CrewDB = {
     return getDB()
       .prepare('SELECT * FROM crews ORDER BY total_earnings DESC LIMIT ?')
       .all(limit) as Crew[];
-  }
+  },
+
   getAllCrews(): Crew[] {
-  return getDB()
-    .prepare('SELECT * FROM crews ORDER BY total_earnings DESC')
-    .all() as Crew[];
-},
+    return getDB()
+      .prepare('SELECT * FROM crews ORDER BY total_earnings DESC')
+      .all() as Crew[];
+  }
 };
 
 /* ───────────────────────── ACHIEVEMENTS ───────────────────────── */
