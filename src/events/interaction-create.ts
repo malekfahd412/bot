@@ -70,7 +70,7 @@ export async function execute(
     return;
   }
 
-  // ───────── SELECT MENU (CREW) ─────────
+  // ───────── SELECT MENU (CREW DASHBOARD) ─────────
   if (interaction.isStringSelectMenu()) {
     if (interaction.customId === 'crew_select') {
       try {
@@ -82,17 +82,16 @@ export async function execute(
     return;
   }
 
-  // ───────── BUTTON ─────────
+  // ───────── BUTTON HANDLER ─────────
   if (!interaction.isButton()) return;
   if (!interaction.inGuild()) return;
 
   const button = interaction as ButtonInteraction;
 
-  const isAdmin =
-    button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
-
-  // ───────── CREW BUTTONS ─────────
-  if (button.customId.startsWith('crew_join_')) {
+  // =========================
+  // CREW JOIN BUTTON (PUBLIC)
+  // =========================
+  if (button.customId.startsWith('crew_join:')) {
     try {
       await handleCrewJoin(button);
     } catch (err) {
@@ -106,10 +105,20 @@ export async function execute(
     return;
   }
 
-  // ───────── ADMIN PANEL ─────────
+  // =========================
+  // ADMIN CHECK
+  // =========================
+  const isAdmin =
+    button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
+
+  // =========================
+  // ADMIN PANEL BYPASS
+  // =========================
   if (button.customId.startsWith('admin:')) return;
 
-  // ───────── RESET ─────────
+  // =========================
+  // RESET BOT COMMAND
+  // =========================
   if (button.customId === 'bot_reset_confirm') {
 
     if (!isAdmin) {
@@ -145,7 +154,9 @@ export async function execute(
     return;
   }
 
-  // ───────── ADMIN GUARD ─────────
+  // =========================
+  // ADMIN GUARD
+  // =========================
   if (!isAdmin) {
     await button.reply({
       content: '🚫 Admin only',
@@ -157,7 +168,6 @@ export async function execute(
   const [action, id] = button.customId.split(':');
 
   try {
-
     let response;
 
     // =========================
