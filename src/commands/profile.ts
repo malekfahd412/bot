@@ -27,11 +27,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await interaction.editReply({
       content: target.id === interaction.user.id
         ? '> 🎯 Your criminal record, boss.'
-        : `> 🎯 Criminal record for **${target.display_name}**.`,
+        : `> 🎯 Criminal record for **${target.displayName}**.`,
       files: [attachment],
     });
 
-    logger.info(`Profile card generated for ${target.display_name}`);
+    logger.info(`Profile card generated for ${target.displayName}`);
   } catch (err) {
     logger.error('Profile card generation failed:', err);
     await interaction.editReply('❌ Failed to generate profile card. Please try again.');

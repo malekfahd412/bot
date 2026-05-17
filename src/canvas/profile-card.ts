@@ -23,8 +23,8 @@ export async function generateProfileCard(player: Player, globalRank: number) {
   // DISPLAY NAME FIX
   // =========================
   const displayName =
-    (player as any).display_name ||
-    player.display_name;
+    (player as any).displayName ||
+    player.displayName;
 
   // =========================
   // BACKGROUND
@@ -365,7 +365,7 @@ export async function generateProfileCard(player: Player, globalRank: number) {
 
 function drawAvatarPlaceholder(
   ctx: any,
-  display_name: string,
+  displayName: string,
   x: number,
   y: number,
   size: number
@@ -388,7 +388,7 @@ function drawAvatarPlaceholder(
   ctx.textAlign = 'center';
 
   ctx.fillText(
-    display_name.charAt(0).toUpperCase(),
+    displayName.charAt(0).toUpperCase(),
     x + size / 2,
     y + size / 2 + 14
   );

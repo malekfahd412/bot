@@ -18,8 +18,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
-  // ⚠️ FIX: Discord.js User has no display_name
-  const displayName = target.display_name;
+  // ⚠️ FIX: Discord.js User has no displayName
+  const displayName = target.displayName;
 
   const player = PlayerSystem.getOrCreate(target.id, displayName, avatarUrl);
 

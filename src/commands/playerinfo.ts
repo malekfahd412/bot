@@ -10,17 +10,17 @@ export const data = new SlashCommandBuilder()
   .setName("playerinfo")
   .setDescription("View Rockstar Social Club profile")
   .addStringOption(opt =>
-    opt.setName("display_name")
-      .setDescription("Rockstar display_name")
+    opt.setName("displayName")
+      .setDescription("Rockstar displayName")
       .setRequired(true)
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  const display_name = interaction.options.getString("display_name", true);
+  const displayName = interaction.options.getString("displayName", true);
 
   await interaction.deferReply();
 
-  const profile = await fetchRockstarProfile(display_name);
+  const profile = await fetchRockstarProfile(displayName);
 
   if (!profile) {
     return interaction.editReply("❌ Player not found or profile is private.");
@@ -32,7 +32,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     .setColor(0xC8A951)
 
     // 🎮 Title clickable
-    .setTitle(`🎮 ${profile.display_name}`)
+    .setTitle(`🎮 ${profile.displayName}`)
     .setURL(profileUrl)
 
     // 🖼️ Avatar (لو موجود)
@@ -41,7 +41,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     // 👤 Layout GTA-style
     .setDescription(
 `👤 **Player Info**
-Username: **${profile.display_name}**
+Username: **${profile.displayName}**
 
 🕹️ **Social Club**
 Status: Online info unavailable (API restricted)
