@@ -29,3 +29,8 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm start"
+
+[userenv]
+
+[userenv.shared]
+GAME_CHANNEL_ID = "1505625934429159526"
