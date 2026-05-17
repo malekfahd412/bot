@@ -12,20 +12,14 @@ export interface LevelUpResult {
 
 export class PlayerSystem {
 
-  static getOrCreate(
-    discordId: string,
-    displayName: string,
-    avatarUrl?: string
-  ): Player {
+  static getOrCreate(discordId: string, displayName: string, avatarUrl?: string): Player {
     const existing = PlayerDB.findByDiscordId(discordId);
-
     if (existing) {
-      if (existing.displayName !== displayName) {
-        PlayerDB.update(discordId, { displayName });
+      if (existing.display_name !== displayName) {
+        PlayerDB.update(discordId, { display_name: displayName });
       }
       return PlayerDB.findByDiscordId(discordId)!;
     }
-
     return PlayerDB.findOrCreate(discordId, displayName, avatarUrl);
   }
 
@@ -42,12 +36,9 @@ export class PlayerSystem {
     const newRank = getRank(newLevel);
     const rankChanged = newRank.name !== oldRank.name;
 
-    if (leveledUp) {
-      logger.game(`${player.displayName} (${discordId}) leveled up to ${newLevel}`);
-    }
-
+    if (leveledUp) logger.game(`${player.display_name} leveled up to ${newLevel}`);
     if (rankChanged) {
-      logger.game(`${player.displayName} (${discordId}) ranked up to ${newRank.name}`);
+      logger.game(`${player.display_name} ranked up to ${newRank.name}`);
       PlayerDB.update(discordId, { rank: newRank.name });
       this.checkRankAchievement(discordId, newRank.name);
     }
@@ -73,9 +64,7 @@ export class PlayerSystem {
     const newRank = getRank(updated.level);
     const rankChanged = newRank.name !== oldRank.name;
 
-    if (rankChanged) {
-      PlayerDB.update(discordId, { rank: newRank.name });
-    }
+    if (rankChanged) PlayerDB.update(discordId, { rank: newRank.name });
 
     return {
       leveledUp: updated.level > player.level,
@@ -85,12 +74,7 @@ export class PlayerSystem {
     };
   }
 
-  static recordHeistResult(
-    discordId: string,
-    success: boolean,
-    difficulty: string,
-    heistName: string
-  ): void {
+  static recordHeistResult(discordId: string, success: boolean, difficulty: string, heistName: string): void {
     const player = PlayerDB.findByDiscordId(discordId);
     if (!player) return;
 
@@ -101,14 +85,11 @@ export class PlayerSystem {
 
     if (success) {
       updates.successful_heists = player.successful_heists + 1;
-
       const difficultyRank = ['easy', 'normal', 'hard'];
       const currentHardest = player.hardest_heist ?? 'easy';
-
       if (difficultyRank.indexOf(difficulty) > difficultyRank.indexOf(currentHardest)) {
         updates.hardest_heist = difficulty;
       }
-
       this.checkHeistAchievements(discordId, player.successful_heists + 1);
     } else {
       updates.failed_heists = player.failed_heists + 1;
@@ -125,12 +106,8 @@ export class PlayerSystem {
       BOSS: ['rank_boss', 'The Boss', 'Reached the rank of Boss', '👑'],
       KINGPIN: ['rank_kingpin', 'Kingpin', 'Reached the pinnacle — Kingpin', '💎'],
     };
-
     const entry = rankAchievements[rank];
-    if (entry) {
-      const [key, name, desc, icon] = entry;
-      AchievementDB.unlock(discordId, key, name, desc, icon);
-    }
+    if (entry) AchievementDB.unlock(discordId, ...entry);
   }
 
   private static checkHeistAchievements(discordId: string, successfulHeists: number): void {
@@ -141,18 +118,12 @@ export class PlayerSystem {
       50: ['heist_50', 'Crime Lord', 'Completed 50 heists', '👑'],
       100: ['heist_100', 'Legend of the Streets', 'Completed 100 heists', '💎'],
     };
-
     const milestone = milestones[successfulHeists];
-    if (milestone) {
-      const [key, name, desc, icon] = milestone;
-      AchievementDB.unlock(discordId, key, name, desc, icon);
-    }
+    if (milestone) AchievementDB.unlock(discordId, ...milestone);
   }
 
   static getLeaderboard(type: 'xp' | 'coins' = 'xp', limit = 10): Player[] {
-    return type === 'xp'
-      ? PlayerDB.getLeaderboard(limit)
-      : PlayerDB.getLeaderboardByCoins(limit);
+    return type === 'xp' ? PlayerDB.getLeaderboard(limit) : PlayerDB.getLeaderboardByCoins(limit);
   }
 
   static getPlayerRank(discordId: string): number {

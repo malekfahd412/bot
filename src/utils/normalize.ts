@@ -6,5 +6,5 @@ export function getDiscordDisplayName(user: User): string {
 }
 
 export function getPlayerDisplayName(player: Player): string {
-  return player.displayName;
+  return player.display_name;
 }

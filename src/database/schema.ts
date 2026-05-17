@@ -1,7 +1,7 @@
 export interface Player {
   id: string;
   discord_id: string;
-  displayName: string;
+  display_name: string;
   avatar_url: string | null;
   level: number;
   xp: number;
@@ -47,10 +47,23 @@ export interface Crew {
   owner_id: string;
   description: string | null;
   icon_url: string | null;
+  level: number;
+  bank_balance: number;
+  reputation: number;
+  territories_owned: string;
   total_heists: number;
   total_earnings: number;
   member_count: number;
   created_at: string;
+}
+
+export interface Territory {
+  id: string;
+  name: string;
+  income_per_hour: number;
+  control_crew_id: string | null;
+  risk_level: 'low' | 'medium' | 'high';
+  last_contested: string | null;
 }
 
 export interface Achievement {

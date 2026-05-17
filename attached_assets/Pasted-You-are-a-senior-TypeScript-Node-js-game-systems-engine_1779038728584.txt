@@ -1,0 +1,143 @@
+You are a senior TypeScript + Node.js game systems engineer.
+
+I have a Discord RPG bot project (GTA-style crime game).  
+The current codebase is messy and has TypeScript errors, inconsistent naming (display_name vs displayName), broken database schema usage, and duplicate/incorrect types.
+
+---
+
+# 🎯 YOUR GOAL
+
+Refactor the project into a clean, stable, production-ready codebase and implement a simplified GTA-style Crew System inside Discord.
+
+The bot must NOT rely on heavy command spam. Instead it should behave like a game engine with events + interactions.
+
+---
+
+# 🚨 CRITICAL RULES
+
+1. DO NOT break existing features unless necessary
+2. Fix ALL TypeScript errors
+3. Normalize naming:
+   - Use ONLY `displayName` in runtime Discord logic
+   - Use ONLY `display_name` in database schema
+   - Never mix them
+4. Ensure database schema and TypeScript types match exactly
+5. Remove duplicate or invalid interface fields
+6. No fake imports, no broken modules
+
+---
+
+# 🧱 DATABASE FIXES REQUIRED
+
+- players table MUST use:
+  id, discord_id, display_name, avatar_url, level, xp, coins, rank, etc.
+- Ensure schema.ts matches DB exactly
+- Fix all missing exports:
+  Crew, Player, HeistSubmission, Achievement
+
+---
+
+# 🏴 NEW FEATURE: GTA-STYLE CREW SYSTEM (LIGHTWEIGHT)
+
+Implement a Crew system with these rules:
+
+## CREW ENTITY
+- id
+- name
+- tag
+- owner_id
+- members
+- level
+- bank_balance
+- reputation
+- territories_owned
+
+## TERRITORIES
+- Downtown
+- Harbor
+- Industrial
+- Slums
+
+Each territory:
+- income_per_hour
+- control_crew
+- risk_level
+
+---
+
+# ⚔️ GAMEPLAY SYSTEM (IMPORTANT)
+
+Instead of command-heavy design:
+
+## Implement EVENT-DRIVEN GAME LOOP:
+
+- Periodic "Crew Events" generator
+- Heist opportunities appear automatically
+- Territory conflicts trigger automatically
+- Players interact using buttons (Discord interactions)
+
+---
+
+# 💣 HEIST SYSTEM
+
+- Heists are dynamically generated events
+- Players join via button interaction
+- Rewards depend on difficulty + crew participation
+- Results update:
+  - XP
+  - coins
+  - crew bank
+
+---
+
+# 🧠 SYSTEM DESIGN REQUIREMENTS
+
+Create or refactor into modules:
+
+- systems/player.ts
+- systems/crew.ts
+- systems/heist.ts
+- systems/events.ts (NEW - event generator engine)
+- database/schema.ts (FIXED CLEAN VERSION)
+
+---
+
+# 🧩 IMPORTANT CLEANUP TASKS
+
+- Remove ALL occurrences of:
+  display_name misuse in Discord User object
+- Replace with:
+  interaction.user.displayName
+
+- Fix all TS errors like:
+  - missing exports
+  - duplicate interfaces
+  - incorrect property names
+  - void passed to AttachmentBuilder
+
+---
+
+# 🎮 DISCORD UX REQUIREMENT
+
+- Use embeds + buttons only
+- No command spam gameplay
+- Make game feel like GTA Online gang system inside Discord
+
+Example:
+
+💣 HEIST AVAILABLE
+Reward: $25,000
+Difficulty: Medium
+
+[ Join Heist ] [ View Details ]
+
+---
+
+# 🏁 OUTPUT EXPECTATION
+
+- Project builds successfully with no TypeScript errors
+- Crew system fully working
+- Event system generating gameplay automatically
+- Clean architecture, scalable design
+
+Refactor aggressively if needed but keep features intact.
