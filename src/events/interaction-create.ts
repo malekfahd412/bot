@@ -2,6 +2,7 @@ import {
   Events, Interaction, ChatInputCommandInteraction,
   ModalSubmitInteraction, ButtonInteraction,
   AttachmentBuilder, Collection, PermissionFlagsBits, REST, Routes,
+  StringSelectMenuInteraction,
 } from 'discord.js';
 
 import { logger } from '../utils/logger.js';
@@ -11,8 +12,8 @@ import { getEventEngine } from '../systems/events.js';
 import { handleHeistModal } from '../commands/heist-log.js';
 import { handleAdminButton } from '../commands/admin.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
-import { handleCrewSelect } from '../interactions/crewSelect.js';
 import { handleCrewJoin } from '../interactions/crewJoin.js';
+import { routeCrewButton, routeCrewSelect, routeCrewModal } from '../crew-interactions/router.js';
 import type { Difficulty } from '../utils/constants.js';
 
 export const name = Events.InteractionCreate;
@@ -45,9 +46,13 @@ export async function execute(
 
   /* ─── MODALS ─── */
   if (interaction.isModalSubmit()) {
-    if (interaction.customId.startsWith('heist_modal:')) {
+    const modal = interaction as ModalSubmitInteraction;
+
+    if (await routeCrewModal(modal)) return;
+
+    if (modal.customId.startsWith('heist_modal:')) {
       try {
-        await handleHeistModal(interaction as ModalSubmitInteraction, configData.reviewChannelId);
+        await handleHeistModal(modal, configData.reviewChannelId);
       } catch (err) {
         logger.error(String(err));
       }
@@ -57,13 +62,10 @@ export async function execute(
 
   /* ─── SELECT MENUS ─── */
   if (interaction.isStringSelectMenu()) {
-    if (interaction.customId === 'crew_select') {
-      try {
-        await handleCrewSelect(interaction);
-      } catch (err) {
-        logger.error(String(err));
-      }
-    }
+    const select = interaction as StringSelectMenuInteraction;
+
+    if (await routeCrewSelect(select)) return;
+
     return;
   }
 
@@ -74,6 +76,16 @@ export async function execute(
   const button = interaction as ButtonInteraction;
   const customId = button.customId;
   const [action] = customId.split(':');
+
+  /* ─── CREW BUTTONS (new interactive system) ─── */
+  if (customId.startsWith('crew:')) {
+    try {
+      await routeCrewButton(button);
+    } catch (err) {
+      logger.error('Crew button error:', err);
+    }
+    return;
+  }
 
   /* ─── EVENT ENGINE ─── */
   if (action === 'event_join') {
@@ -90,7 +102,7 @@ export async function execute(
     return;
   }
 
-  /* ─── CREW JOIN ─── */
+  /* ─── CREW JOIN (legacy) ─── */
   if (action === 'crew_join') {
     try {
       await handleCrewJoin(button);
@@ -101,7 +113,7 @@ export async function execute(
     return;
   }
 
-  /* ─── ADMIN SYSTEM (panel, confirm, cancel) ─── */
+  /* ─── ADMIN SYSTEM ─── */
   if (action === 'admin_panel' || action === 'admin_confirm' || action === 'admin_cancel') {
     const isAdmin = button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
     if (!isAdmin) { await button.reply({ content: '🚫 Admin only.', ephemeral: true }); return; }

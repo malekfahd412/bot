@@ -1,0 +1,273 @@
+You are a senior Discord.js + TypeScript UX engineer.
+
+Transform my GTA RPG Crew System from a basic slash-command system into a FULL INTERACTIVE UI SYSTEM using:
+
+- Discord Embeds
+- Buttons
+- String Select Menus
+- Modals
+- Pagination
+- Interaction collectors
+
+The Crew System must feel like a REAL GTA ONLINE / MMO FACTION SYSTEM — NOT text commands.
+
+━━━━━━━━━━━━━━━━━━
+🎯 MAIN GOAL
+━━━━━━━━━━━━━━━━━━
+
+Create a cinematic, interactive, modern Crew System completely driven by UI interactions.
+
+Players should feel like they are navigating a real in-game faction menu.
+
+NO boring command spam.
+
+━━━━━━━━━━━━━━━━━━
+🧠 SYSTEM DESIGN
+━━━━━━━━━━━━━━━━━━
+
+Main entry command ONLY:
+
+/crew
+
+This opens the main Crew Hub panel.
+
+Everything else happens through:
+- buttons
+- menus
+- modals
+- embeds
+
+━━━━━━━━━━━━━━━━━━
+🔥 MAIN CREW HUB
+━━━━━━━━━━━━━━━━━━
+
+When player runs /crew:
+
+Show a premium embed with:
+- crew name
+- crew tag
+- level
+- total earnings
+- members count
+- territory count
+- crew bank
+- reputation
+- crew rank
+
+Include crew logo/banner if available.
+
+━━━━━━━━━━━━━━━━━━
+🎛️ REQUIRED BUTTONS
+━━━━━━━━━━━━━━━━━━
+
+[👥 Members]
+[💰 Crew Bank]
+[🏴 Territories]
+[⚔️ Crew Wars]
+[📦 Upgrades]
+[📊 Statistics]
+[⚙️ Management]
+
+If player has no crew:
+Show:
+[➕ Create Crew]
+[📨 Invitations]
+[🔍 Browse Crews]
+
+━━━━━━━━━━━━━━━━━━
+🏴 CREATE CREW FLOW
+━━━━━━━━━━━━━━━━━━
+
+Use MODALS for creation.
+
+Player clicks:
+[➕ Create Crew]
+
+Open modal:
+- Crew Name
+- Crew Tag
+- Description
+
+After submit:
+- validate uniqueness
+- create crew
+- auto refresh UI
+
+━━━━━━━━━━━━━━━━━━
+👥 MEMBERS PANEL
+━━━━━━━━━━━━━━━━━━
+
+Interactive members list with pagination.
+
+Show:
+- member rank
+- level
+- contribution
+- last active
+- role
+
+Buttons:
+[Promote]
+[Demote]
+[Kick]
+[Transfer Ownership]
+
+Only authorized roles can manage.
+
+━━━━━━━━━━━━━━━━━━
+💰 CREW BANK SYSTEM
+━━━━━━━━━━━━━━━━━━
+
+Interactive crew economy panel.
+
+Features:
+- deposit money
+- withdraw money
+- transaction history
+- upgrade funding
+- robbery insurance
+
+Use buttons + modals.
+
+━━━━━━━━━━━━━━━━━━
+🏴 TERRITORY SYSTEM
+━━━━━━━━━━━━━━━━━━
+
+Create territory control system.
+
+Each territory:
+- gives passive income
+- can be attacked
+- has defense level
+- has heat level
+
+Show:
+- current owner
+- income/hour
+- defending members
+
+Buttons:
+[Attack Territory]
+[Defend]
+[Upgrade Security]
+
+━━━━━━━━━━━━━━━━━━
+⚔️ CREW WAR SYSTEM
+━━━━━━━━━━━━━━━━━━
+
+Live crew war system.
+
+Features:
+- declare war
+- accept war
+- active war status
+- war leaderboard
+- war rewards
+
+Interactive war embeds with:
+[Join War]
+[Defend]
+[Retreat]
+
+━━━━━━━━━━━━━━━━━━
+📦 CREW UPGRADES
+━━━━━━━━━━━━━━━━━━
+
+Upgrade tree system.
+
+Examples:
+- vault capacity
+- passive income boost
+- reduced heat
+- extra crew slots
+- territory buffs
+
+Display as interactive upgrade menu.
+
+━━━━━━━━━━━━━━━━━━
+📊 STATS PANEL
+━━━━━━━━━━━━━━━━━━
+
+Advanced analytics:
+- total earnings
+- success rate
+- richest member
+- most active member
+- territories controlled
+- crew rank globally
+
+━━━━━━━━━━━━━━━━━━
+⚙️ MANAGEMENT PANEL
+━━━━━━━━━━━━━━━━━━
+
+Owner/Admin controls:
+
+- edit description
+- edit tag
+- edit banner
+- invite players
+- disband crew
+- transfer ownership
+
+Use confirmation buttons for dangerous actions.
+
+━━━━━━━━━━━━━━━━━━
+🎨 VISUAL STYLE
+━━━━━━━━━━━━━━━━━━
+
+VERY IMPORTANT:
+
+UI must feel:
+- dark elite
+- GTA Online
+- premium MMO faction system
+
+Use:
+- clean embeds
+- emojis
+- section dividers
+- premium formatting
+- cinematic wording
+
+NO ugly plain embeds.
+
+━━━━━━━━━━━━━━━━━━
+🧩 TECHNICAL REQUIREMENTS
+━━━━━━━━━━━━━━━━━━
+
+Use:
+- Discord.js v14
+- TypeScript
+- modular architecture
+
+Create:
+- crew-ui/
+- crew-panels/
+- crew-interactions/
+- crew-services/
+
+Use collectors safely.
+Prevent interaction leaks.
+Prevent duplicate collectors.
+
+━━━━━━━━━━━━━━━━━━
+🛡️ SAFETY RULES
+━━━━━━━━━━━━━━━━━━
+
+- DO NOT break existing systems
+- Keep database compatibility
+- Fix TypeScript issues
+- Avoid memory leaks
+- Avoid interaction expiration bugs
+
+━━━━━━━━━━━━━━━━━━
+🏁 FINAL RESULT
+━━━━━━━━━━━━━━━━━━
+
+After implementation:
+- Crew system feels like a real GTA game UI
+- Almost no commands needed
+- Fully interactive experience
+- Stable production-ready structure
+- Beautiful embeds + interactions
+- Scalable architecture

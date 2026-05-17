@@ -17,6 +17,7 @@ export interface Player {
   last_daily: string | null;
   last_heist: string | null;
   crew_id: string | null;
+  crew_role: 'owner' | 'officer' | 'member';
   created_at: string;
   updated_at: string;
 }
@@ -103,4 +104,33 @@ export interface Season {
   started_at: string;
   ended_at: string | null;
   results: string | null;
+}
+
+export interface CrewTransaction {
+  id: string;
+  crew_id: string;
+  type: 'deposit' | 'withdraw' | 'heist_reward' | 'territory_income' | 'upgrade_purchase';
+  amount: number;
+  description: string;
+  actor_id: string;
+  created_at: string;
+}
+
+export interface CrewWar {
+  id: string;
+  attacker_crew_id: string;
+  defender_crew_id: string;
+  status: 'pending' | 'active' | 'ended';
+  attacker_score: number;
+  defender_score: number;
+  winner_crew_id: string | null;
+  started_at: string;
+  ended_at: string | null;
+}
+
+export interface CrewUpgrade {
+  id: string;
+  crew_id: string;
+  upgrade_key: string;
+  purchased_at: string;
 }

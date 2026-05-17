@@ -4,7 +4,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { logger } from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { Player, HeistSubmission, Crew, Territory, Achievement, AdminLog, Season } from './schema.js';
+import type { Player, HeistSubmission, Crew, Territory, Achievement, AdminLog, Season, CrewTransaction, CrewWar, CrewUpgrade } from './schema.js';
 
 const DATA_DIR = join(process.cwd(), 'data');
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
@@ -49,6 +49,7 @@ function initSchema(database: Database.Database): void {
       last_daily TEXT,
       last_heist TEXT,
       crew_id TEXT,
+      crew_role TEXT NOT NULL DEFAULT 'member',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -127,6 +128,36 @@ function initSchema(database: Database.Database): void {
       ended_at TEXT,
       results TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS crew_transactions (
+      id TEXT PRIMARY KEY,
+      crew_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      description TEXT NOT NULL,
+      actor_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS crew_wars (
+      id TEXT PRIMARY KEY,
+      attacker_crew_id TEXT NOT NULL,
+      defender_crew_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      attacker_score INTEGER NOT NULL DEFAULT 0,
+      defender_score INTEGER NOT NULL DEFAULT 0,
+      winner_crew_id TEXT,
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS crew_upgrades (
+      id TEXT PRIMARY KEY,
+      crew_id TEXT NOT NULL,
+      upgrade_key TEXT NOT NULL,
+      purchased_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(crew_id, upgrade_key)
+    );
   `);
 }
 
@@ -137,6 +168,11 @@ function migrateSchema(database: Database.Database): void {
   if (playerCols.includes('displayName') && !playerCols.includes('display_name')) {
     database.exec('ALTER TABLE players RENAME COLUMN displayName TO display_name');
     logger.info('Migration: players.displayName → players.display_name');
+  }
+  if (!playerCols.includes('crew_role')) {
+    database.exec("ALTER TABLE players ADD COLUMN crew_role TEXT NOT NULL DEFAULT 'member'");
+    database.exec("UPDATE players SET crew_role = 'owner' WHERE discord_id IN (SELECT owner_id FROM crews)");
+    logger.info('Migration: players.crew_role added');
   }
 
   const crewCols = (database.prepare('PRAGMA table_info(crews)').all() as { name: string }[]).map(c => c.name);
@@ -337,13 +373,13 @@ export const CrewDB = {
     getDB().prepare(`UPDATE crews SET ${set} WHERE id = ?`).run(...values, id);
   },
 
-  addMember(crewId: string, discordId: string): void {
-    PlayerDB.update(discordId, { crew_id: crewId });
+  addMember(crewId: string, discordId: string, role: 'owner' | 'officer' | 'member' = 'member'): void {
+    PlayerDB.update(discordId, { crew_id: crewId, crew_role: role });
     getDB().prepare('UPDATE crews SET member_count = member_count + 1 WHERE id = ?').run(crewId);
   },
 
   removeMember(crewId: string, discordId: string): void {
-    PlayerDB.update(discordId, { crew_id: null });
+    PlayerDB.update(discordId, { crew_id: null as any, crew_role: 'member' });
     getDB().prepare('UPDATE crews SET member_count = MAX(0, member_count - 1) WHERE id = ?').run(crewId);
   },
 
@@ -353,6 +389,10 @@ export const CrewDB = {
 
   depositToBank(crewId: string, amount: number): void {
     getDB().prepare('UPDATE crews SET bank_balance = bank_balance + ? WHERE id = ?').run(amount, crewId);
+  },
+
+  withdrawFromBank(crewId: string, amount: number): void {
+    getDB().prepare('UPDATE crews SET bank_balance = MAX(0, bank_balance - ?) WHERE id = ?').run(amount, crewId);
   },
 
   addReputation(crewId: string, amount: number): void {
@@ -384,6 +424,11 @@ export const CrewDB = {
   countAll(): number {
     return (getDB().prepare('SELECT COUNT(*) as n FROM crews').get() as { n: number }).n;
   },
+
+  disband(crewId: string): void {
+    getDB().prepare("UPDATE players SET crew_id = NULL, crew_role = 'member' WHERE crew_id = ?").run(crewId);
+    getDB().prepare('DELETE FROM crews WHERE id = ?').run(crewId);
+  },
 };
 
 /* ─────────────────────────── TERRITORY DB ─────────────────────────── */
@@ -413,6 +458,95 @@ export const TerritoryDB = {
 
   resetAllControl(): void {
     getDB().prepare('UPDATE territories SET control_crew_id = NULL, last_contested = NULL').run();
+  },
+};
+
+/* ─────────────────────────── CREW TRANSACTION DB ─────────────────────────── */
+
+export const CrewTransactionDB = {
+  record(crewId: string, type: CrewTransaction['type'], amount: number, description: string, actorId: string): void {
+    getDB().prepare(
+      'INSERT INTO crew_transactions (id, crew_id, type, amount, description, actor_id) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(uuidv4(), crewId, type, amount, description, actorId);
+  },
+
+  getRecent(crewId: string, limit = 8): CrewTransaction[] {
+    return getDB()
+      .prepare('SELECT * FROM crew_transactions WHERE crew_id = ? ORDER BY created_at DESC LIMIT ?')
+      .all(crewId, limit) as CrewTransaction[];
+  },
+};
+
+/* ─────────────────────────── CREW WAR DB ─────────────────────────── */
+
+export const CrewWarDB = {
+  declare(attackerCrewId: string, defenderCrewId: string): CrewWar {
+    const id = uuidv4();
+    getDB().prepare(
+      "INSERT INTO crew_wars (id, attacker_crew_id, defender_crew_id, status) VALUES (?, ?, ?, 'pending')"
+    ).run(id, attackerCrewId, defenderCrewId);
+    return this.findById(id)!;
+  },
+
+  findById(id: string): CrewWar | undefined {
+    return getDB().prepare('SELECT * FROM crew_wars WHERE id = ?').get(id) as CrewWar | undefined;
+  },
+
+  accept(warId: string): void {
+    getDB().prepare("UPDATE crew_wars SET status = 'active' WHERE id = ?").run(warId);
+  },
+
+  addScore(warId: string, side: 'attacker' | 'defender', points: number): void {
+    const col = side === 'attacker' ? 'attacker_score' : 'defender_score';
+    getDB().prepare(`UPDATE crew_wars SET ${col} = ${col} + ? WHERE id = ?`).run(points, warId);
+  },
+
+  end(warId: string, winnerCrewId: string | null): void {
+    getDB()
+      .prepare("UPDATE crew_wars SET status = 'ended', winner_crew_id = ?, ended_at = datetime('now') WHERE id = ?")
+      .run(winnerCrewId, warId);
+  },
+
+  getActiveForCrew(crewId: string): CrewWar[] {
+    return getDB()
+      .prepare("SELECT * FROM crew_wars WHERE (attacker_crew_id = ? OR defender_crew_id = ?) AND status IN ('pending','active')")
+      .all(crewId, crewId) as CrewWar[];
+  },
+
+  getHistoryForCrew(crewId: string, limit = 5): CrewWar[] {
+    return getDB()
+      .prepare("SELECT * FROM crew_wars WHERE (attacker_crew_id = ? OR defender_crew_id = ?) AND status = 'ended' ORDER BY ended_at DESC LIMIT ?")
+      .all(crewId, crewId, limit) as CrewWar[];
+  },
+
+  hasPendingWarBetween(crewA: string, crewB: string): boolean {
+    const row = getDB()
+      .prepare("SELECT id FROM crew_wars WHERE ((attacker_crew_id = ? AND defender_crew_id = ?) OR (attacker_crew_id = ? AND defender_crew_id = ?)) AND status IN ('pending','active')")
+      .get(crewA, crewB, crewB, crewA);
+    return !!row;
+  },
+};
+
+/* ─────────────────────────── CREW UPGRADE DB ─────────────────────────── */
+
+export const CrewUpgradeDB = {
+  purchase(crewId: string, upgradeKey: string): void {
+    getDB().prepare(
+      'INSERT OR IGNORE INTO crew_upgrades (id, crew_id, upgrade_key) VALUES (?, ?, ?)'
+    ).run(uuidv4(), crewId, upgradeKey);
+  },
+
+  has(crewId: string, upgradeKey: string): boolean {
+    const row = getDB()
+      .prepare('SELECT id FROM crew_upgrades WHERE crew_id = ? AND upgrade_key = ?')
+      .get(crewId, upgradeKey);
+    return !!row;
+  },
+
+  getAll(crewId: string): CrewUpgrade[] {
+    return getDB()
+      .prepare('SELECT * FROM crew_upgrades WHERE crew_id = ?')
+      .all(crewId) as CrewUpgrade[];
   },
 };
 
