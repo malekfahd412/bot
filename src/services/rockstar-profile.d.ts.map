@@ -1,1 +1,0 @@
-{"version":3,"file":"rockstar-profile.d.ts","sourceRoot":"","sources":["rockstar-profile.ts"],"names":[],"mappings":"AAGA,MAAM,MAAM,eAAe,GAAG;IAC5B,QAAQ,EAAE,MAAM,CAAC;IACjB,MAAM,CAAC,EAAE,MAAM,CAAC;IAChB,UAAU,EAAE,MAAM,CAAC;IACnB,OAAO,CAAC,EAAE,MAAM,CAAC;CAClB,CAAC;AAEF,wBAAsB,oBAAoB,CAAC,QAAQ,EAAE,MAAM,GAAG,OAAO,CAAC,eAAe,GAAG,IAAI,CAAC,CAqC5F"}
