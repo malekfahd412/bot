@@ -13,6 +13,7 @@ import {
 import { COLORS } from '../utils/constants.js';
 import { getRank, formatCoins, formatNumber } from '../utils/helpers.js';
 import type { Player, HeistSubmission } from '../database/schema.js';
+import type { Crew } from '../database/schema.js';
 
 const W = 700;
 
