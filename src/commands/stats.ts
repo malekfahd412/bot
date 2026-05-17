@@ -15,21 +15,30 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   await interaction.deferReply();
 
   const target = interaction.options.getUser('target') ?? interaction.user;
+
   const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
-  const player = PlayerSystem.getOrCreate(target.id, target.display_name, avatarUrl);
+  // ⚠️ FIX: Discord.js User has no display_name
+  const displayName = target.display_name;
+
+  const player = PlayerSystem.getOrCreate(target.id, displayName, avatarUrl);
+
   const recentHeists = HeistSystem.getPlayerHistory(target.id, 4);
 
   try {
     const buffer = await generateStatsCard(player, recentHeists);
+
     const attachment = new AttachmentBuilder(buffer, { name: 'stats.png' });
 
     await interaction.editReply({
-      content: target.id === interaction.user.id
-        ? '> 📊 Your full criminal dossier.'
-        : `> 📊 Criminal dossier for **${target.display_name}**.`,
+      content:
+        target.id === interaction.user.id
+          ? '> 📊 Your full criminal dossier.'
+          : `> 📊 Criminal dossier for **${displayName}**.`,
+
       files: [attachment],
     });
+
   } catch (err) {
     logger.error('Stats card generation failed:', err);
     await interaction.editReply('❌ Failed to generate stats card. Please try again.');
