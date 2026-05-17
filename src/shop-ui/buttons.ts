@@ -3,10 +3,72 @@ import {
   StringSelectMenuBuilder, StringSelectMenuOptionBuilder,
 } from 'discord.js';
 import { ShopItem, InventoryItem } from '../database/schema.js';
-import { SHOP_CATEGORIES, RARITY_CONFIG, getDailyFeaturedKeys, DAILY_DISCOUNT } from './items-config.js';
+import { SHOP_CATEGORIES, RARITY_CONFIG, DAILY_DISCOUNT } from './items-config.js';
 import { formatCoins } from '../utils/helpers.js';
+import { createCustomId, validateComponentRows } from '../shop-utils/customId.js';
 
 type AnyRow = ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>;
+
+/* ─────────────────────────────────────────────────────────────────────────
+   REUSABLE BUTTON BUILDERS
+───────────────────────────────────────────────────────────────────────── */
+
+export function createBackButton(label = '← Back', customId = 'shop:main'): ButtonBuilder {
+  return new ButtonBuilder().setCustomId(customId).setLabel(label).setStyle(ButtonStyle.Secondary);
+}
+
+export function createMainButton(): ButtonBuilder {
+  return new ButtonBuilder().setCustomId('shop:main').setLabel('🏠 Main').setStyle(ButtonStyle.Secondary);
+}
+
+export function createPaginationButtons(
+  prefix: string,
+  page: number,
+  totalPages: number,
+): [ButtonBuilder, ButtonBuilder] {
+  const prevPage = Math.max(0, page - 1);
+  const nextPage = Math.min(totalPages - 1, page + 1);
+
+  const prevBtn = new ButtonBuilder()
+    .setCustomId(createCustomId(prefix, prevPage, 'prev'))
+    .setLabel('◀ Prev')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(page === 0);
+
+  const nextBtn = new ButtonBuilder()
+    .setCustomId(createCustomId(prefix, nextPage, 'next'))
+    .setLabel('Next ▶')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(page >= totalPages - 1);
+
+  return [prevBtn, nextBtn];
+}
+
+export function createInventoryPaginationButtons(
+  page: number,
+  totalPages: number,
+): [ButtonBuilder, ButtonBuilder] {
+  const prevPage = Math.max(0, page - 1);
+  const nextPage = Math.min(Math.max(0, totalPages - 1), page + 1);
+
+  const prevBtn = new ButtonBuilder()
+    .setCustomId(createCustomId('shop:inv', prevPage, 'prev'))
+    .setLabel('◀ Prev')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(page === 0);
+
+  const nextBtn = new ButtonBuilder()
+    .setCustomId(createCustomId('shop:inv', nextPage, 'next'))
+    .setLabel('Next ▶')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(page >= totalPages - 1);
+
+  return [prevBtn, nextBtn];
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MAIN SHOP
+───────────────────────────────────────────────────────────────────────── */
 
 export function buildMainRows(): AnyRow[] {
   const cats = Object.values(SHOP_CATEGORIES);
@@ -22,8 +84,12 @@ export function buildMainRows(): AnyRow[] {
     ),
     new ButtonBuilder().setCustomId('shop:inv:0').setLabel('🎒 My Inventory').setStyle(ButtonStyle.Primary),
   );
-  return [row1, row2];
+  return validateComponentRows([row1, row2], 'buildMainRows');
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   CATEGORY
+───────────────────────────────────────────────────────────────────────── */
 
 export function buildCategoryRows(
   items: ShopItem[],
@@ -52,14 +118,20 @@ export function buildCategoryRows(
     );
   }
 
+  const [prevBtn, nextBtn] = createPaginationButtons(`shop:cat:${category}`, page, totalPages);
   const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId('shop:main').setLabel('← Back').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`shop:cat:${category}:${Math.max(0, page - 1)}`).setLabel('◀ Prev').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-    new ButtonBuilder().setCustomId(`shop:cat:${category}:${Math.min(totalPages - 1, page + 1)}`).setLabel('Next ▶').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1),
+    createBackButton('← Back', 'shop:main'),
+    prevBtn,
+    nextBtn,
   );
   rows.push(navRow);
-  return rows;
+
+  return validateComponentRows(rows, `buildCategoryRows[${category}]`);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ITEM DETAIL
+───────────────────────────────────────────────────────────────────────── */
 
 export function buildItemDetailRows(item: ShopItem, canAfford: boolean, outOfStock: boolean): AnyRow[] {
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -68,11 +140,15 @@ export function buildItemDetailRows(item: ShopItem, canAfford: boolean, outOfSto
       .setLabel(outOfStock ? '❌ Out of Stock' : `💳 Purchase — ${formatCoins(item.price)}`)
       .setStyle(ButtonStyle.Success)
       .setDisabled(!canAfford || outOfStock || !item.available),
-    new ButtonBuilder().setCustomId(`shop:cat:${item.category}:0`).setLabel('← Back').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('shop:main').setLabel('🏠 Main').setStyle(ButtonStyle.Secondary),
+    createBackButton('← Back', `shop:cat:${item.category}:0`),
+    createMainButton(),
   );
-  return [row];
+  return validateComponentRows([row], 'buildItemDetailRows');
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   INVENTORY
+───────────────────────────────────────────────────────────────────────── */
 
 export function buildInventoryRows(items: InventoryItem[], page: number, totalPages: number): AnyRow[] {
   const rows: AnyRow[] = [];
@@ -101,15 +177,21 @@ export function buildInventoryRows(items: InventoryItem[], page: number, totalPa
     }
   }
 
+  const [prevBtn, nextBtn] = createInventoryPaginationButtons(page, totalPages);
   rows.push(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId('shop:main').setLabel('🏠 Shop').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId(`shop:inv:${Math.max(0, page - 1)}`).setLabel('◀ Prev').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-      new ButtonBuilder().setCustomId(`shop:inv:${Math.min(Math.max(0, totalPages - 1), page + 1)}`).setLabel('Next ▶').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1),
+      prevBtn,
+      nextBtn,
     )
   );
-  return rows;
+
+  return validateComponentRows(rows, 'buildInventoryRows');
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   FEATURED
+───────────────────────────────────────────────────────────────────────── */
 
 export function buildFeaturedRows(featuredItems: ShopItem[], playerCoins: number): AnyRow[] {
   const rows: AnyRow[] = [];
@@ -134,22 +216,28 @@ export function buildFeaturedRows(featuredItems: ShopItem[], playerCoins: number
 
   rows.push(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('shop:main').setLabel('← Back to Shop').setStyle(ButtonStyle.Secondary),
+      createBackButton('← Back to Shop', 'shop:main'),
     )
   );
-  return rows;
+
+  return validateComponentRows(rows, 'buildFeaturedRows');
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ADMIN PANEL
+───────────────────────────────────────────────────────────────────────── */
 
 export function buildAdminPanelRows(items: ShopItem[], page: number, totalPages: number): AnyRow[] {
   const rows: AnyRow[] = [];
   const PAGE_SIZE = 5;
   const slice = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+  const [prevBtn, nextBtn] = createPaginationButtons('shopadm:panel', page, totalPages);
   rows.push(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId('shopadm:add').setLabel('➕ Add Item').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`shopadm:panel:${Math.max(0, page - 1)}`).setLabel('◀ Prev').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-      new ButtonBuilder().setCustomId(`shopadm:panel:${Math.min(Math.max(0, totalPages - 1), page + 1)}`).setLabel('Next ▶').setStyle(ButtonStyle.Secondary).setDisabled(page >= totalPages - 1),
+      prevBtn,
+      nextBtn,
     )
   );
 
@@ -171,11 +259,11 @@ export function buildAdminPanelRows(items: ShopItem[], page: number, totalPages:
     );
   }
 
-  return rows;
+  return validateComponentRows(rows, 'buildAdminPanelRows');
 }
 
 export function buildAdminItemRows(itemId: string, page: number): AnyRow[] {
-  return [
+  const rows: AnyRow[] = [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`shopadm:edit_price:${itemId}`).setLabel('✏️ Edit Price').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId(`shopadm:edit_item:${itemId}`).setLabel('📝 Edit Item').setStyle(ButtonStyle.Primary),
@@ -184,7 +272,8 @@ export function buildAdminItemRows(itemId: string, page: number): AnyRow[] {
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(`shopadm:delete:${itemId}`).setLabel('🗑️ Delete').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(`shopadm:panel:${page}`).setLabel('← Back').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(createCustomId('shopadm:panel', page, 'back')).setLabel('← Back').setStyle(ButtonStyle.Secondary),
     ),
   ];
+  return validateComponentRows(rows, 'buildAdminItemRows');
 }

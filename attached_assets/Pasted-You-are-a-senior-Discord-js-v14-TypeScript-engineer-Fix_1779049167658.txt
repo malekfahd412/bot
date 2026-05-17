@@ -1,0 +1,153 @@
+You are a senior Discord.js v14 + TypeScript engineer.
+
+Fix ALL shop interaction and component errors in my GTA RPG Discord bot.
+
+━━━━━━━━━━━━━━━━━━
+❌ CURRENT ERROR
+━━━━━━━━━━━━━━━━━━
+
+Discord API returns:
+
+COMPONENT_CUSTOM_ID_DUPLICATED
+
+Error code:
+50035 Invalid Form Body
+
+Cause:
+Multiple buttons/select menus inside the SAME message are using duplicated custom_id values.
+
+Examples:
+- shop:inv:0
+- shop:cat:boosts:0
+- shop:cat:special:0
+
+The same custom_id is being used for BOTH:
+- Prev button
+- Next button
+
+This breaks Discord interactions.
+
+━━━━━━━━━━━━━━━━━━
+🎯 GOAL
+━━━━━━━━━━━━━━━━━━
+
+Refactor the ENTIRE shop UI interaction system to make ALL component custom IDs globally unique and scalable.
+
+━━━━━━━━━━━━━━━━━━
+✅ REQUIRED FIX
+━━━━━━━━━━━━━━━━━━
+
+Refactor ALL buttons/select menus/custom IDs.
+
+Example:
+
+❌ BAD:
+shop:cat:boosts:0
+
+✅ GOOD:
+shop:cat:boosts:0:prev
+shop:cat:boosts:0:next
+
+Inventory:
+shop:inv:0:prev
+shop:inv:0:next
+
+Main menu:
+shop:main
+
+Purchase:
+shop:buy:<itemId>
+
+Preview:
+shop:view:<itemId>
+
+Use item:
+shop:use:<inventoryItemId>
+
+━━━━━━━━━━━━━━━━━━
+🧠 ALSO FIX
+━━━━━━━━━━━━━━━━━━
+
+Create a centralized helper utility:
+
+createCustomId(...parts)
+
+Example:
+createCustomId('shop','cat',category,page,'next')
+
+Returns:
+shop:cat:boosts:0:next
+
+━━━━━━━━━━━━━━━━━━
+🛡️ VALIDATION SYSTEM
+━━━━━━━━━━━━━━━━━━
+
+Add automatic validation BEFORE sending embeds.
+
+Check:
+- duplicate custom_ids
+- empty custom_ids
+- invalid button structures
+
+If duplicates exist:
+- log warning
+- auto-fix OR throw safe error
+
+━━━━━━━━━━━━━━━━━━
+🏗️ ARCHITECTURE REFACTOR
+━━━━━━━━━━━━━━━━━━
+
+Create scalable interaction structure:
+
+/shop/
+  interactions/
+  components/
+  handlers/
+  utils/
+  builders/
+
+Move ALL button creation into reusable builders.
+
+Example:
+createPaginationButtons()
+createBackButton()
+createInventoryButtons()
+
+━━━━━━━━━━━━━━━━━━
+⚡ EXTRA IMPROVEMENTS
+━━━━━━━━━━━━━━━━━━
+
+Also improve:
+- collector handling
+- interaction expiration handling
+- safe deferUpdate()
+- safe editReply()
+- button disabling
+- pagination state
+
+━━━━━━━━━━━━━━━━━━
+🚨 IMPORTANT
+━━━━━━━━━━━━━━━━━━
+
+DO NOT break:
+- existing inventory
+- economy
+- purchases
+- boosts
+- admin shop system
+
+Preserve all existing functionality.
+
+━━━━━━━━━━━━━━━━━━
+🏁 RESULT
+━━━━━━━━━━━━━━━━━━
+
+After fix:
+- NO duplicated custom_id errors
+- Shop UI works perfectly
+- Pagination works correctly
+- Inventory works correctly
+- Buttons are stable
+- System becomes scalable for future features
+
+Make it production-ready.

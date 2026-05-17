@@ -82,6 +82,7 @@ export async function routeShopButton(interaction: ButtonInteraction): Promise<b
     }
 
     if (id.startsWith('shopadm:panel:')) {
+      // Handles: shopadm:panel:<page>  |  shopadm:panel:<page>:prev  |  shopadm:panel:<page>:next  |  shopadm:panel:<page>:back
       const page = parseInt(id.split(':')[2] ?? '0', 10) || 0;
       await showAdminPanel(interaction, page);
       return true;
@@ -125,10 +126,6 @@ export async function routeShopButton(interaction: ButtonInteraction): Promise<b
       return true;
     }
 
-    if (id.startsWith('shopadm:back')) {
-      await showAdminPanel(interaction, 0);
-      return true;
-    }
   }
 
   return false;
