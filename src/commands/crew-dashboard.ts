@@ -4,7 +4,6 @@ import {
   EmbedBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  StringSelectMenuInteraction,
 } from 'discord.js';
 
 import { CrewDB } from '../database/db.js';
@@ -18,7 +17,7 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction) {
-  const crews = CrewDB.getAllCrews();
+  const crews = CrewDB.getLeaderboard(25); // FIX: بدل getAllCrews
 
   const embed = new EmbedBuilder()
     .setTitle('🏴 Crew Dashboard')
@@ -33,7 +32,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     .setCustomId('crew_select')
     .setPlaceholder('Select a crew...')
     .addOptions(
-      crews.slice(0, 25).map(c => ({
+      crews.map(c => ({
         label: c.name,
         description: `Tag: ${c.tag} | Members: ${c.member_count}`,
         value: c.id,
