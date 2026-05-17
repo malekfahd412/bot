@@ -6,6 +6,7 @@ import * as stats from '../commands/stats.js';
 import * as heistLog from '../commands/heist-log.js';
 import * as crew from '../commands/crew-dashboard.js';
 import * as inventory from '../commands/inventory.js';
+import * as shop from '../commands/shop.js';
 import * as admin from '../commands/admin.js';
 import { logger } from '../utils/logger.js';
 
@@ -25,6 +26,7 @@ export function loadCommands(): Collection<string, CommandModule> {
     heistLog as unknown as CommandModule,
     crew as unknown as CommandModule,
     inventory as unknown as CommandModule,
+    shop as unknown as CommandModule,
     admin as unknown as CommandModule,
 ];
 

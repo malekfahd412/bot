@@ -4,7 +4,8 @@ import { mkdirSync, existsSync } from 'fs';
 import { logger } from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { Player, HeistSubmission, Crew, Territory, Achievement, AdminLog, Season, CrewTransaction, CrewWar, CrewUpgrade } from './schema.js';
+import type { Player, HeistSubmission, Crew, Territory, Achievement, AdminLog, Season, CrewTransaction, CrewWar, CrewUpgrade, ShopItem, InventoryItem, ActiveBoost } from './schema.js';
+import { STARTER_ITEMS } from '../shop-ui/items-config.js';
 
 const DATA_DIR = join(process.cwd(), 'data');
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
@@ -21,6 +22,7 @@ export function getDB(): Database.Database {
     initSchema(db);
     migrateSchema(db);
     seedTerritories(db);
+    seedShopItems(db);
     logger.success('Database ready');
   }
   return db;
@@ -158,6 +160,47 @@ function initSchema(database: Database.Database): void {
       purchased_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(crew_id, upgrade_key)
     );
+
+    CREATE TABLE IF NOT EXISTS shop_items (
+      id TEXT PRIMARY KEY,
+      item_key TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT 'special',
+      rarity TEXT NOT NULL DEFAULT 'common',
+      price INTEGER NOT NULL DEFAULT 0,
+      icon TEXT NOT NULL DEFAULT '📦',
+      effect_type TEXT NOT NULL DEFAULT 'NONE',
+      effect_value REAL NOT NULL DEFAULT 0,
+      effect_duration INTEGER NOT NULL DEFAULT 0,
+      available INTEGER NOT NULL DEFAULT 1,
+      featured INTEGER NOT NULL DEFAULT 0,
+      stock INTEGER NOT NULL DEFAULT -1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS inventory_items (
+      id TEXT PRIMARY KEY,
+      player_id TEXT NOT NULL,
+      item_key TEXT NOT NULL,
+      item_name TEXT NOT NULL,
+      item_type TEXT NOT NULL DEFAULT 'consumable',
+      item_icon TEXT NOT NULL DEFAULT '📦',
+      quantity INTEGER NOT NULL DEFAULT 1,
+      acquired_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS active_boosts (
+      id TEXT PRIMARY KEY,
+      player_id TEXT NOT NULL,
+      item_key TEXT NOT NULL,
+      item_name TEXT NOT NULL,
+      item_icon TEXT NOT NULL DEFAULT '⚡',
+      effect_type TEXT NOT NULL,
+      effect_value REAL NOT NULL,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -190,6 +233,18 @@ function migrateSchema(database: Database.Database): void {
     database.exec('ALTER TABLE crews ADD COLUMN icon_url TEXT');
   if (!crewCols.includes('created_at'))
     database.exec("ALTER TABLE crews ADD COLUMN created_at TEXT NOT NULL DEFAULT (datetime('now'))");
+
+  const invCols = (database.prepare('PRAGMA table_info(inventory_items)').all() as { name: string }[]).map(c => c.name);
+  if (invCols.length > 0 && !invCols.includes('item_icon')) {
+    database.exec("ALTER TABLE inventory_items ADD COLUMN item_icon TEXT NOT NULL DEFAULT '📦'");
+    logger.info('Migration: inventory_items.item_icon added');
+  }
+
+  const boostCols = (database.prepare('PRAGMA table_info(active_boosts)').all() as { name: string }[]).map(c => c.name);
+  if (boostCols.length > 0 && !boostCols.includes('item_icon')) {
+    database.exec("ALTER TABLE active_boosts ADD COLUMN item_icon TEXT NOT NULL DEFAULT '⚡'");
+    logger.info('Migration: active_boosts.item_icon added');
+  }
 }
 
 /* ─────────────────────────── SEED TERRITORIES ─────────────────────────── */
@@ -199,10 +254,10 @@ function seedTerritories(database: Database.Database): void {
   if (count > 0) return;
 
   const territories = [
-    { id: 'downtown', name: 'Downtown', income_per_hour: 2000, risk_level: 'high' },
-    { id: 'harbor', name: 'Harbor', income_per_hour: 1500, risk_level: 'medium' },
+    { id: 'downtown',   name: 'Downtown',   income_per_hour: 2000, risk_level: 'high' },
+    { id: 'harbor',     name: 'Harbor',     income_per_hour: 1500, risk_level: 'medium' },
     { id: 'industrial', name: 'Industrial', income_per_hour: 1200, risk_level: 'medium' },
-    { id: 'slums', name: 'Slums', income_per_hour: 800, risk_level: 'low' },
+    { id: 'slums',      name: 'Slums',      income_per_hour: 800,  risk_level: 'low' },
   ];
 
   const insert = database.prepare(
@@ -210,6 +265,28 @@ function seedTerritories(database: Database.Database): void {
   );
   for (const t of territories) insert.run(t.id, t.name, t.income_per_hour, t.risk_level);
   logger.info('Territories seeded (4 zones)');
+}
+
+/* ─────────────────────────── SEED SHOP ITEMS ─────────────────────────── */
+
+function seedShopItems(database: Database.Database): void {
+  const count = (database.prepare('SELECT COUNT(*) as n FROM shop_items').get() as { n: number }).n;
+  if (count > 0) return;
+
+  const insert = database.prepare(`
+    INSERT OR IGNORE INTO shop_items
+      (id, item_key, name, description, category, rarity, price, icon, effect_type, effect_value, effect_duration)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  for (const item of STARTER_ITEMS) {
+    insert.run(
+      uuidv4(), item.item_key, item.name, item.description,
+      item.category, item.rarity, item.price, item.icon,
+      item.effect_type, item.effect_value, item.effect_duration,
+    );
+  }
+  logger.info(`Shop seeded with ${STARTER_ITEMS.length} starter items`);
 }
 
 /* ─────────────────────────── PLAYER DB ─────────────────────────── */
@@ -559,65 +636,214 @@ export const AchievementDB = {
         'INSERT OR IGNORE INTO achievements (id, player_id, achievement_key, achievement_name, description, icon) VALUES (?, ?, ?, ?, ?, ?)'
       ).run(uuidv4(), player, key, name, desc, icon);
       return true;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   },
 
-  getPlayerAchievements(id: string): Achievement[] {
-    return getDB().prepare('SELECT * FROM achievements WHERE player_id = ? ORDER BY unlocked_at DESC').all(id) as Achievement[];
+  getPlayerAchievements(player: string): Achievement[] {
+    return getDB().prepare('SELECT * FROM achievements WHERE player_id = ? ORDER BY unlocked_at DESC').all(player) as Achievement[];
+  },
+
+  hasAchievement(player: string, key: string): boolean {
+    return !!getDB().prepare('SELECT id FROM achievements WHERE player_id = ? AND achievement_key = ?').get(player, key);
   },
 };
 
 /* ─────────────────────────── ADMIN LOG DB ─────────────────────────── */
 
 export const AdminLogDB = {
-  insert(data: {
-    admin_id: string;
-    action_type: string;
-    target: string | null;
-    details: string | null;
-    before_snapshot: string | null;
-  }): void {
+  insert(data: { admin_id: string; action_type: string; target: string | null; details: string | null; before_snapshot: string | null }): void {
     getDB().prepare(
       'INSERT INTO admin_logs (id, admin_id, action_type, target, details, before_snapshot) VALUES (?, ?, ?, ?, ?, ?)'
     ).run(uuidv4(), data.admin_id, data.action_type, data.target, data.details, data.before_snapshot);
   },
 
-  getRecent(limit = 20): AdminLog[] {
-    return getDB()
-      .prepare('SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ?')
-      .all(limit) as AdminLog[];
+  getRecent(limit = 15): AdminLog[] {
+    return getDB().prepare('SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ?').all(limit) as AdminLog[];
   },
 };
 
 /* ─────────────────────────── SEASON DB ─────────────────────────── */
 
 export const SeasonDB = {
-  create(name: string): Season {
-    const result = getDB()
-      .prepare("INSERT INTO seasons (name, status) VALUES (?, 'active')")
-      .run(name);
-    return this.findById(result.lastInsertRowid as number)!;
+  getActive(): Season | undefined {
+    return getDB().prepare("SELECT * FROM seasons WHERE status = 'active' ORDER BY id DESC LIMIT 1").get() as Season | undefined;
   },
 
   findById(id: number): Season | undefined {
     return getDB().prepare('SELECT * FROM seasons WHERE id = ?').get(id) as Season | undefined;
   },
 
-  getActive(): Season | undefined {
-    return getDB().prepare("SELECT * FROM seasons WHERE status = 'active' ORDER BY started_at DESC LIMIT 1").get() as Season | undefined;
-  },
-
-  end(id: number, results: string): void {
-    getDB()
-      .prepare("UPDATE seasons SET status = 'ended', ended_at = datetime('now'), results = ? WHERE id = ?")
-      .run(results, id);
+  getAll(): Season[] {
+    return getDB().prepare('SELECT * FROM seasons ORDER BY id DESC').all() as Season[];
   },
 
   getRecent(limit = 10): Season[] {
+    return getDB().prepare('SELECT * FROM seasons ORDER BY id DESC LIMIT ?').all(limit) as Season[];
+  },
+
+  create(name: string): Season {
+    getDB().prepare("INSERT INTO seasons (name, status) VALUES (?, 'active')").run(name);
+    return this.getActive()!;
+  },
+
+  end(id: number, results: string): void {
+    getDB().prepare("UPDATE seasons SET status = 'ended', ended_at = datetime('now'), results = ? WHERE id = ?").run(results, id);
+  },
+};
+
+/* ─────────────────────────── SHOP ITEM DB ─────────────────────────── */
+
+export const ShopItemDB = {
+  getAll(): ShopItem[] {
+    return getDB().prepare("SELECT * FROM shop_items ORDER BY category, rarity, name").all() as ShopItem[];
+  },
+
+  getAvailable(): ShopItem[] {
+    return getDB().prepare("SELECT * FROM shop_items WHERE available = 1 ORDER BY category, rarity, name").all() as ShopItem[];
+  },
+
+  getByCategory(category: string): ShopItem[] {
+    return getDB().prepare("SELECT * FROM shop_items WHERE category = ? AND available = 1 ORDER BY rarity, name").all(category) as ShopItem[];
+  },
+
+  findById(id: string): ShopItem | undefined {
+    return getDB().prepare('SELECT * FROM shop_items WHERE id = ?').get(id) as ShopItem | undefined;
+  },
+
+  findByKey(key: string): ShopItem | undefined {
+    return getDB().prepare('SELECT * FROM shop_items WHERE item_key = ?').get(key) as ShopItem | undefined;
+  },
+
+  create(data: {
+    item_key: string; name: string; description: string; category: string;
+    rarity: string; price: number; icon: string; effect_type: string;
+    effect_value: number; effect_duration: number;
+  }): ShopItem {
+    const id = uuidv4();
+    getDB().prepare(`
+      INSERT INTO shop_items (id, item_key, name, description, category, rarity, price, icon, effect_type, effect_value, effect_duration)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, data.item_key, data.name, data.description, data.category, data.rarity, data.price, data.icon, data.effect_type, data.effect_value, data.effect_duration);
+    return this.findById(id)!;
+  },
+
+  update(id: string, data: Partial<Omit<ShopItem, 'id' | 'created_at'>>): void {
+    const keys = Object.keys(data);
+    if (!keys.length) return;
+    const set = keys.map(k => `${k} = ?`).join(', ');
+    getDB().prepare(`UPDATE shop_items SET ${set} WHERE id = ?`).run(...Object.values(data), id);
+  },
+
+  delete(id: string): void {
+    getDB().prepare('DELETE FROM shop_items WHERE id = ?').run(id);
+  },
+
+  toggleAvailable(id: string): boolean {
+    const item = this.findById(id);
+    if (!item) return false;
+    const newVal = item.available ? 0 : 1;
+    getDB().prepare('UPDATE shop_items SET available = ? WHERE id = ?').run(newVal, id);
+    return newVal === 1;
+  },
+
+  toggleFeatured(id: string): boolean {
+    const item = this.findById(id);
+    if (!item) return false;
+    const newVal = item.featured ? 0 : 1;
+    getDB().prepare('UPDATE shop_items SET featured = ? WHERE id = ?').run(newVal, id);
+    return newVal === 1;
+  },
+
+  decrementStock(id: string): void {
+    getDB().prepare('UPDATE shop_items SET stock = MAX(-1, stock - 1) WHERE id = ? AND stock > 0').run(id);
+  },
+
+  getAnalytics(): { totalSold: number; topItems: { name: string; count: number }[] } {
+    const totalSold = (getDB().prepare('SELECT COUNT(*) as n FROM inventory_items').get() as { n: number }).n;
+    const topItems = getDB().prepare(`
+      SELECT item_name as name, SUM(quantity) as count
+      FROM inventory_items
+      GROUP BY item_key
+      ORDER BY count DESC
+      LIMIT 3
+    `).all() as { name: string; count: number }[];
+    return { totalSold, topItems };
+  },
+};
+
+/* ─────────────────────────── INVENTORY DB ─────────────────────────── */
+
+export const InventoryDB = {
+  getPlayer(playerId: string): InventoryItem[] {
+    return getDB().prepare('SELECT * FROM inventory_items WHERE player_id = ? ORDER BY acquired_at DESC').all(playerId) as InventoryItem[];
+  },
+
+  findById(id: string): InventoryItem | undefined {
+    return getDB().prepare('SELECT * FROM inventory_items WHERE id = ?').get(id) as InventoryItem | undefined;
+  },
+
+  findPlayerItem(playerId: string, itemKey: string): InventoryItem | undefined {
+    return getDB().prepare('SELECT * FROM inventory_items WHERE player_id = ? AND item_key = ?').get(playerId, itemKey) as InventoryItem | undefined;
+  },
+
+  addItem(playerId: string, shopItem: ShopItem): void {
+    const existing = this.findPlayerItem(playerId, shopItem.item_key);
+    if (existing) {
+      getDB().prepare('UPDATE inventory_items SET quantity = quantity + 1 WHERE id = ?').run(existing.id);
+    } else {
+      getDB().prepare(
+        'INSERT INTO inventory_items (id, player_id, item_key, item_name, item_type, item_icon, quantity) VALUES (?, ?, ?, ?, ?, ?, 1)'
+      ).run(uuidv4(), playerId, shopItem.item_key, shopItem.name, shopItem.category, shopItem.icon);
+    }
+  },
+
+  removeOne(id: string): void {
+    const item = this.findById(id);
+    if (!item) return;
+    if (item.quantity <= 1) {
+      getDB().prepare('DELETE FROM inventory_items WHERE id = ?').run(id);
+    } else {
+      getDB().prepare('UPDATE inventory_items SET quantity = quantity - 1 WHERE id = ?').run(id);
+    }
+  },
+
+  count(playerId: string): number {
+    return (getDB().prepare('SELECT COUNT(*) as n FROM inventory_items WHERE player_id = ?').get(playerId) as { n: number }).n;
+  },
+};
+
+/* ─────────────────────────── ACTIVE BOOST DB ─────────────────────────── */
+
+export const BoostDB = {
+  getActive(playerId: string): ActiveBoost[] {
     return getDB()
-      .prepare('SELECT * FROM seasons ORDER BY started_at DESC LIMIT ?')
-      .all(limit) as Season[];
+      .prepare("SELECT * FROM active_boosts WHERE player_id = ? AND expires_at > datetime('now') ORDER BY expires_at ASC")
+      .all(playerId) as ActiveBoost[];
+  },
+
+  getActiveByType(playerId: string, effectType: string): ActiveBoost | undefined {
+    return getDB()
+      .prepare("SELECT * FROM active_boosts WHERE player_id = ? AND effect_type = ? AND expires_at > datetime('now') ORDER BY expires_at DESC LIMIT 1")
+      .get(playerId, effectType) as ActiveBoost | undefined;
+  },
+
+  activate(playerId: string, item: ShopItem): ActiveBoost {
+    const id = uuidv4();
+    const expiresAt = new Date(Date.now() + item.effect_duration * 60 * 1000).toISOString();
+    getDB().prepare(
+      'INSERT INTO active_boosts (id, player_id, item_key, item_name, item_icon, effect_type, effect_value, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(id, playerId, item.item_key, item.name, item.icon, item.effect_type, item.effect_value, expiresAt);
+    return getDB().prepare('SELECT * FROM active_boosts WHERE id = ?').get(id) as ActiveBoost;
+  },
+
+  purgeExpired(): void {
+    getDB().prepare("DELETE FROM active_boosts WHERE expires_at <= datetime('now')").run();
+  },
+
+  hasActive(playerId: string, itemKey: string): boolean {
+    const row = getDB()
+      .prepare("SELECT id FROM active_boosts WHERE player_id = ? AND item_key = ? AND expires_at > datetime('now')")
+      .get(playerId, itemKey);
+    return !!row;
   },
 };

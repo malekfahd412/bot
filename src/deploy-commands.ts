@@ -9,6 +9,7 @@ import { data as stats } from './commands/stats.js';
 import { data as heistLog } from './commands/heist-log.js';
 import { data as crew } from './commands/crew-dashboard.js';
 import { data as inventory } from './commands/inventory.js';
+import { data as shop } from './commands/shop.js';
 import { data as admin } from './commands/admin.js';
 
 config();
@@ -23,7 +24,7 @@ if (!TOKEN || !CLIENT_ID) {
 }
 
 const commandData = [
-  profile, daily, leaderboard, stats, heistLog, crew, inventory, admin,
+  profile, daily, leaderboard, stats, heistLog, crew, inventory, shop, admin,
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);

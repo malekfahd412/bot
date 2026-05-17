@@ -54,6 +54,10 @@ export class PlayerSystem {
     PlayerDB.addCoins(discordId, amount);
   }
 
+  static spendCoins(discordId: string, amount: number): void {
+    PlayerDB.addCoins(discordId, -amount);
+  }
+
   static adminGiveXP(discordId: string, amount: number): LevelUpResult {
     const player = PlayerDB.findByDiscordId(discordId);
     if (!player) throw new Error('Player not found');

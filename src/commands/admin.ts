@@ -61,6 +61,9 @@ export const data = new SlashCommandBuilder()
     sub.setName('panel').setDescription('Open the admin control panel')
   )
   .addSubcommand(sub =>
+    sub.setName('shop').setDescription('Open the shop admin panel — manage items, prices, availability')
+  )
+  .addSubcommand(sub =>
     sub.setName('pending')
       .setDescription('View pending heist submissions')
       .addIntegerOption(o => o.setName('page').setDescription('Page').setRequired(false).setMinValue(1))
@@ -158,6 +161,23 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   /* ════════════════ FLAT SUBCOMMANDS ════════════════ */
 
   if (!group) {
+
+    if (sub === 'shop') {
+      const { ShopItemDB } = await import('../database/db.js');
+      const { buildAdminPanelEmbed } = await import('../shop-ui/embeds.js');
+      const { buildAdminPanelRows } = await import('../shop-ui/buttons.js');
+
+      const allItems = ShopItemDB.getAll();
+      const PAGE_SIZE = 5;
+      const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+      const stats = ShopItemDB.getAnalytics();
+
+      const embed = buildAdminPanelEmbed(allItems, 0, totalPages, stats);
+      const rows = buildAdminPanelRows(allItems, 0, totalPages);
+
+      await interaction.editReply({ embeds: [embed], components: rows });
+      return;
+    }
 
     if (sub === 'panel') {
       const totalPlayers = PlayerDB.countAll();

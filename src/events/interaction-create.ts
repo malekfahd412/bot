@@ -14,6 +14,7 @@ import { handleAdminButton } from '../commands/admin.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
 import { handleCrewJoin } from '../interactions/crewJoin.js';
 import { routeCrewButton, routeCrewSelect, routeCrewModal } from '../crew-interactions/router.js';
+import { routeShopButton, routeShopSelect, routeShopModal } from '../shop-interactions/router.js';
 import type { Difficulty } from '../utils/constants.js';
 
 export const name = Events.InteractionCreate;
@@ -48,6 +49,7 @@ export async function execute(
   if (interaction.isModalSubmit()) {
     const modal = interaction as ModalSubmitInteraction;
 
+    if (await routeShopModal(modal)) return;
     if (await routeCrewModal(modal)) return;
 
     if (modal.customId.startsWith('heist_modal:')) {
@@ -64,6 +66,7 @@ export async function execute(
   if (interaction.isStringSelectMenu()) {
     const select = interaction as StringSelectMenuInteraction;
 
+    if (await routeShopSelect(select)) return;
     if (await routeCrewSelect(select)) return;
 
     return;
@@ -77,7 +80,17 @@ export async function execute(
   const customId = button.customId;
   const [action] = customId.split(':');
 
-  /* ─── CREW BUTTONS (new interactive system) ─── */
+  /* ─── SHOP BUTTONS ─── */
+  if (customId.startsWith('shop:') || customId.startsWith('shopadm:')) {
+    try {
+      await routeShopButton(button);
+    } catch (err) {
+      logger.error('Shop button error:', err);
+    }
+    return;
+  }
+
+  /* ─── CREW BUTTONS ─── */
   if (customId.startsWith('crew:')) {
     try {
       await routeCrewButton(button);

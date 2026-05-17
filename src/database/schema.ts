@@ -83,8 +83,39 @@ export interface InventoryItem {
   item_key: string;
   item_name: string;
   item_type: string;
+  item_icon: string;
   quantity: number;
   acquired_at: string;
+}
+
+export interface ShopItem {
+  id: string;
+  item_key: string;
+  name: string;
+  description: string;
+  category: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  price: number;
+  icon: string;
+  effect_type: string;
+  effect_value: number;
+  effect_duration: number;
+  available: number;
+  featured: number;
+  stock: number;
+  created_at: string;
+}
+
+export interface ActiveBoost {
+  id: string;
+  player_id: string;
+  item_key: string;
+  item_name: string;
+  item_icon: string;
+  effect_type: string;
+  effect_value: number;
+  expires_at: string;
+  created_at: string;
 }
 
 export interface AdminLog {
