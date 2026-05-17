@@ -7,7 +7,6 @@ import {
 } from 'discord.js';
 
 import { CrewDB } from '../database/db.js';
-import { CrewSystem } from '../systems/crew.js';
 
 export async function handleCrewSelect(interaction: StringSelectMenuInteraction) {
   if (interaction.customId !== 'crew_select') return;
@@ -35,7 +34,7 @@ export async function handleCrewSelect(interaction: StringSelectMenuInteraction)
     .setColor('Gold');
 
   const joinBtn = new ButtonBuilder()
-    .setCustomId(`crew_join_${crew.id}`)
+    .setCustomId(`crew_join:${crew.id}`) // FIX: unified format
     .setLabel('Join Crew')
     .setStyle(ButtonStyle.Success);
 
