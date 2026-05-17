@@ -2,6 +2,7 @@ import {
   ButtonInteraction, StringSelectMenuInteraction, ModalSubmitInteraction,
   PermissionFlagsBits, EmbedBuilder, ColorResolvable,
 } from 'discord.js';
+import { buildHistoryEmbed, buildHistoryRows } from '../commands/event.js';
 import { WarEventDB, EventTeamDB, EventParticipantDB, CrewDB } from '../database/db.js';
 import { WarEventManager, buildLeaderboardEmbed, buildEventEndEmbed } from '../systems/war-event.js';
 import {
@@ -352,6 +353,41 @@ export async function routeEventPanelModal(interaction: ModalSubmitInteraction):
 
     void refreshPanelMessage(interaction.client, channelId, messageId);
     void WarEventManager.updateAnnouncementMessage(event, interaction.client);
+    return true;
+  }
+
+  return false;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   HISTORY PAGINATION BUTTON ROUTER  (customId starts with ehist:)
+───────────────────────────────────────────────────────────────────────── */
+
+export async function routeEventHistoryButton(interaction: ButtonInteraction): Promise<boolean> {
+  const id = interaction.customId;
+  if (!id.startsWith('ehist:')) return false;
+
+  if (id === 'ehist:label') {
+    await interaction.deferUpdate();
+    return true;
+  }
+
+  if (id.startsWith('ehist:page:')) {
+    const page = parseInt(id.slice('ehist:page:'.length), 10);
+    if (isNaN(page) || page < 0) { await interaction.deferUpdate(); return true; }
+
+    const total = WarEventDB.countEnded();
+    if (page >= total) { await interaction.deferUpdate(); return true; }
+
+    const [event] = WarEventDB.getHistoryPaged(1, page);
+    if (!event) { await interaction.deferUpdate(); return true; }
+
+    const teams = EventTeamDB.getTeams(event.id);
+
+    await interaction.update({
+      embeds: [buildHistoryEmbed(event, teams, page, total)],
+      components: buildHistoryRows(page, total),
+    });
     return true;
   }
 

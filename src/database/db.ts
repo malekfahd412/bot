@@ -889,6 +889,16 @@ export const WarEventDB = {
   getHistory(limit = 10): WarEvent[] {
     return getDB().prepare("SELECT * FROM war_events WHERE status = 'ended' ORDER BY ended_at DESC LIMIT ?").all(limit) as WarEvent[];
   },
+
+  getHistoryPaged(limit: number, offset: number): WarEvent[] {
+    return getDB()
+      .prepare("SELECT * FROM war_events WHERE status = 'ended' ORDER BY ended_at DESC LIMIT ? OFFSET ?")
+      .all(limit, offset) as WarEvent[];
+  },
+
+  countEnded(): number {
+    return (getDB().prepare("SELECT COUNT(*) as n FROM war_events WHERE status = 'ended'").get() as { n: number }).n;
+  },
 };
 
 /* ─────────────────────────── EVENT TEAM DB ─────────────────────────── */

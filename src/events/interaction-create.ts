@@ -15,7 +15,7 @@ import { generateMissionCard } from '../canvas/mission-card.js';
 import { handleCrewJoin } from '../interactions/crewJoin.js';
 import { routeCrewButton, routeCrewSelect, routeCrewModal } from '../crew-interactions/router.js';
 import { routeShopButton, routeShopSelect, routeShopModal } from '../shop-interactions/router.js';
-import { routeWarEventButton, routeEventPanelButton, routeEventPanelSelect, routeEventPanelModal } from '../event-interactions/router.js';
+import { routeWarEventButton, routeEventPanelButton, routeEventPanelSelect, routeEventPanelModal, routeEventHistoryButton } from '../event-interactions/router.js';
 import type { Difficulty } from '../utils/constants.js';
 
 export const name = Events.InteractionCreate;
@@ -82,6 +82,16 @@ export async function execute(
   const button = interaction as ButtonInteraction;
   const customId = button.customId;
   const [action] = customId.split(':');
+
+  /* ─── EVENT HISTORY PAGINATION ─── */
+  if (customId.startsWith('ehist:')) {
+    try {
+      await routeEventHistoryButton(button);
+    } catch (err) {
+      logger.error('Event history button error:', err);
+    }
+    return;
+  }
 
   /* ─── EVENT PANEL BUTTONS (admin) ─── */
   if (customId.startsWith('evp:')) {
