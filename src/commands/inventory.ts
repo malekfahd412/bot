@@ -12,13 +12,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   await interaction.deferReply();
 
   const user = interaction.user;
-  const player = PlayerSystem.getOrCreate(user.id, interaction.user.display_name, user.displayAvatarURL({ extension: 'png', size: 256 }));
+  const player = PlayerSystem.getOrCreate(user.id, interaction.user.displayName, user.displayAvatarURL({ extension: 'png', size: 256 }));
   const achievements = AchievementDB.getPlayerAchievements(user.id);
   const rank = getRank(player.level);
 
   const embed = new EmbedBuilder()
     .setColor(0xC8A951)
-    .setTitle(`🎒 ${interaction.user.display_name}'s Inventory`)
+    .setTitle(`🎒 ${interaction.user.displayName}'s Inventory`)
     .setThumbnail(user.displayAvatarURL())
     .addFields(
       { name: '🏅 Rank', value: `${rank.icon} **${rank.name}**`, inline: true },

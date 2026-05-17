@@ -27,7 +27,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
   // FIX: الصحيح
-  const username = target.display_name;
+  const username = target.displayName;
 
   const player = PlayerSystem.getOrCreate(
     target.id,

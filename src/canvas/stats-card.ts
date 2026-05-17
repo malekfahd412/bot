@@ -109,9 +109,9 @@ export async function generateCrewCard(
   ctx.textAlign = 'left';
   ctx.fillStyle = COLORS.textMuted;
 
-  // FIXED display_name usage
+  // FIXED displayName usage
   ctx.fillText(
-    `OWNER: ${owner.display_name.toUpperCase()}`,
+    `OWNER: ${owner.displayName.toUpperCase()}`,
     120,
     74
   );
@@ -298,7 +298,7 @@ export async function generateCrewCard(
       ctx.textAlign = 'center';
 
       ctx.fillText(
-        m.display_name.charAt(0).toUpperCase(),
+        m.displayName.charAt(0).toUpperCase(),
         mx + 28,
         my + 34
       );
@@ -318,7 +318,7 @@ export async function generateCrewCard(
         : '#FFFFFF';
 
     ctx.fillText(
-      m.display_name + (isOwner ? '  👑' : ''),
+      m.displayName + (isOwner ? '  👑' : ''),
       mx + 54,
       my + 24
     );

@@ -1,7 +1,7 @@
 export interface Player {
   id: string;
   discord_id: string;
-  display_name: string;
+  displayName: string;
   avatar_url: string | null;
   level: number;
   xp: number;

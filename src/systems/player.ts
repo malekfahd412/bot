@@ -27,7 +27,7 @@ export class PlayerSystem {
     // تحديث الاسم تلقائي لو اتغير
     if (existing) {
 
-      if (existing.display_name !== username) {
+      if (existing.displayName !== username) {
         PlayerDB.update(discordId, {
           username: username,
         });
@@ -74,14 +74,14 @@ export class PlayerSystem {
     if (leveledUp) {
 
       logger.game(
-        `${player.display_name} (${discordId}) leveled up to ${newLevel}`
+        `${player.displayName} (${discordId}) leveled up to ${newLevel}`
       );
     }
 
     if (rankChanged) {
 
       logger.game(
-        `${player.display_name} (${discordId}) ranked up to ${newRank.name}`
+        `${player.displayName} (${discordId}) ranked up to ${newRank.name}`
       );
 
       PlayerDB.update(discordId, {
