@@ -5,7 +5,7 @@ import * as leaderboard from '../commands/leaderboard.js';
 import * as stats from '../commands/stats.js';
 import * as heistLog from '../commands/heist-log.js';
 import * as playerinfo from '../commands/playerinfo.js';
-import * as crew from '../commands/crew.js';
+import * as crew from '../commands/crew-dashboard.js';
 import * as inventory from '../commands/inventory.js';
 import * as admin from '../commands/admin.js';
 import { logger } from '../utils/logger.js';

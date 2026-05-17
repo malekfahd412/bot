@@ -12,7 +12,7 @@ import {
 
 import { COLORS } from '../utils/constants.js';
 import { getRank, formatCoins, formatNumber } from '../utils/helpers.js';
-import type { Crew, Player } from '../database/schema.js';
+import type { Player, HeistSubmission } from '../database/schema.js';
 
 const W = 700;
 
@@ -377,4 +377,8 @@ export async function generateCrewCard(
   applyVignette(ctx, W, H);
 
   return canvasToBuffer(canvas);
+}
+
+export function generateStatsCard(player: Player, recentHeists: HeistSubmission[]) {
+    throw new Error('Function not implemented.');
 }
