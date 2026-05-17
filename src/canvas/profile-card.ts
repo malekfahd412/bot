@@ -22,9 +22,9 @@ export async function generateProfileCard(player: Player, globalRank: number) {
   // =========================
   // DISPLAY NAME FIX
   // =========================
-  const displayName =
-    (player as any).displayName ||
-    player.displayName;
+  const display_name =
+    (player as any).display_name ||
+    player.display_name;
 
   // =========================
   // BACKGROUND
@@ -153,7 +153,7 @@ export async function generateProfileCard(player: Player, globalRank: number) {
 
       drawAvatarPlaceholder(
         ctx,
-        displayName,
+        display_name,
         avatarX,
         avatarY,
         avatarSize
@@ -164,7 +164,7 @@ export async function generateProfileCard(player: Player, globalRank: number) {
 
     drawAvatarPlaceholder(
       ctx,
-      displayName,
+      display_name,
       avatarX,
       avatarY,
       avatarSize
@@ -179,7 +179,7 @@ export async function generateProfileCard(player: Player, globalRank: number) {
 
   drawGlowText(
     ctx,
-    displayName,
+    display_name,
     158,
     72,
     '#FFFFFF',
@@ -365,7 +365,7 @@ export async function generateProfileCard(player: Player, globalRank: number) {
 
 function drawAvatarPlaceholder(
   ctx: any,
-  displayName: string,
+  display_name: string,
   x: number,
   y: number,
   size: number
@@ -388,7 +388,7 @@ function drawAvatarPlaceholder(
   ctx.textAlign = 'center';
 
   ctx.fillText(
-    displayName.charAt(0).toUpperCase(),
+    display_name.charAt(0).toUpperCase(),
     x + size / 2,
     y + size / 2 + 14
   );

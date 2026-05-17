@@ -2,15 +2,15 @@ import axios from "axios";
 import * as cheerio from "cheerio";
 
 export type RockstarProfile = {
-  displayName: string;
+  display_name: string;
   avatar?: string;
   profileUrl: string;
   rawHtml?: string;
 };
 
-export async function fetchRockstarProfile(displayName: string): Promise<RockstarProfile | null> {
+export async function fetchRockstarProfile(display_name: string): Promise<RockstarProfile | null> {
   try {
-    const url = `https://socialclub.rockstargames.com/member/${encodeURIComponent(displayName)}`;
+    const url = `https://socialclub.rockstargames.com/member/${encodeURIComponent(display_name)}`;
 
     const res = await axios.get(url, {
       headers: {
@@ -32,10 +32,10 @@ export async function fetchRockstarProfile(displayName: string): Promise<Rocksta
       $('meta[property="og:title"]').attr("content");
 
     const cleanUsername =
-      ogTitle?.split(" | ")[0] || displayName;
+      ogTitle?.split(" | ")[0] || display_name;
 
     return {
-      displayName: cleanUsername,
+      display_name: cleanUsername,
       avatar,
       profileUrl: url,
       rawHtml: html,

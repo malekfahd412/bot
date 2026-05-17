@@ -275,7 +275,7 @@ export async function generateLeaderboardCard(
       ctx.textAlign = 'center';
 
       ctx.fillText(
-        p.displayName.charAt(0).toUpperCase(),
+        p.display_name.charAt(0).toUpperCase(),
         avX + avSize / 2,
         avY + avSize / 2 + 7
       );
@@ -291,7 +291,7 @@ export async function generateLeaderboardCard(
     ctx.fillStyle = '#FFFFFF';
 
     ctx.fillText(
-      p.displayName,
+      p.display_name,
       126,
       ry + 28
     );

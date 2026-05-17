@@ -15,7 +15,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const user = interaction.user;
   const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
 
-  PlayerSystem.getOrCreate(user.id, interaction.user.displayName, avatarUrl);
+  PlayerSystem.getOrCreate(user.id, interaction.user.display_name, avatarUrl);
 
   try {
     const result = StreakSystem.claimDaily(user.id);
@@ -32,7 +32,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setTitle(result.streakBroken ? '💔 Streak Reset' : result.milestoneReached ? `🎉 STREAK MILESTONE — ${result.milestone} DAYS!` : '💰 Daily Payday')
       .setDescription(result.streakBroken
         ? `Your streak was broken. Starting fresh from **1 day**.`
-        : `You showed up. The crew respects that, **${interaction.user.displayName}**.`)
+        : `You showed up. The crew respects that, **${interaction.user.display_name}**.`)
       .addFields(
         { name: '⚡ XP Earned', value: `+${formatNumber(result.xp)} XP`, inline: true },
         { name: '💵 Coins Earned', value: formatCoins(result.coins), inline: true },

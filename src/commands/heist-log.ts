@@ -149,7 +149,7 @@ export async function handleHeistModal(
 
   PlayerSystem.getOrCreate(
     user.id,
-    interaction.user.displayName,
+    interaction.user.display_name,
     user.displayAvatarURL({ extension: 'png', size: 256 })
   );
 
@@ -214,7 +214,7 @@ export async function handleHeistModal(
       content: `✅ Heist submitted successfully!\nID: \`${submission.id}\``,
     });
 
-    logger.game(`Heist submitted by ${interaction.user.displayName}`);
+    logger.game(`Heist submitted by ${interaction.user.display_name}`);
 
   } catch (err) {
     logger.error(String(err));

@@ -100,19 +100,19 @@ export const PlayerDB = {
       .get(id) as Player | undefined;
   },
 
-  create(discord_id: string, displayName: string, avatar_url?: string): Player {
+  create(discord_id: string, display_name: string, avatar_url?: string): Player {
     const id = uuidv4();
 
     getDB().prepare(`
-      INSERT INTO players (id, discord_id, displayName, avatar_url)
+      INSERT INTO players (id, discord_id, display_name, avatar_url)
       VALUES (?, ?, ?, ?)
-    `).run(id, discord_id, displayName, avatar_url ?? null);
+    `).run(id, discord_id, display_name, avatar_url ?? null);
 
     return this.findByDiscordId(discord_id)!;
   },
 
-  findOrCreate(id: string, displayName: string, avatar?: string): Player {
-    return this.findByDiscordId(id) ?? this.create(id, displayName, avatar);
+  findOrCreate(id: string, display_name: string, avatar?: string): Player {
+    return this.findByDiscordId(id) ?? this.create(id, display_name, avatar);
   },
 
   update(discord_id: string, data: any): void {

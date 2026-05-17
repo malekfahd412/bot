@@ -7,7 +7,7 @@ import {
 import { PlayerSystem } from '../systems/player.js';
 import { HeistSystem } from '../systems/heist.js';
 import { logger } from '../utils/logger.js';
-import * as StatsCard from '../canvas/stats-card.js';
+import { generateStatsCard } from '../canvas/stats-card.js';
 
 export const data = new SlashCommandBuilder()
   .setName('stats')
@@ -19,34 +19,26 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
   );
 
-export async function execute(
-  interaction: ChatInputCommandInteraction
-): Promise<void> {
+export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
 
   const target = interaction.options.getUser('target') ?? interaction.user;
 
-  const avatarUrl = target.displayAvatarURL({
-    extension: 'png',
-    size: 256,
-  });
+  const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
-  const displayName = target.displayName;
+  // FIX: الصحيح
+  const username = target.display_name;
 
   const player = PlayerSystem.getOrCreate(
     target.id,
-    displayName,
+    username,
     avatarUrl
   );
 
   const recentHeists = HeistSystem.getPlayerHistory(target.id, 4);
 
   try {
-    // FIX: force correct return type
-    const buffer = (await StatsCard.generateStatsCard(
-        player,
-        recentHeists
-    )) as unknown as Buffer;
+    const buffer = await generateStatsCard(player, recentHeists);
 
     const attachment = new AttachmentBuilder(buffer, {
       name: 'stats.png',
@@ -56,15 +48,13 @@ export async function execute(
       content:
         target.id === interaction.user.id
           ? '> 📊 Your full criminal dossier.'
-          : `> 📊 Criminal dossier for **${displayName}**.`,
+          : `> 📊 Criminal dossier for **${username}**.`,
 
       files: [attachment],
     });
 
   } catch (err) {
     logger.error('Stats card generation failed:', err);
-    await interaction.editReply(
-      '❌ Failed to generate stats card. Please try again.'
-    );
+    await interaction.editReply('❌ Failed to generate stats card.');
   }
 }

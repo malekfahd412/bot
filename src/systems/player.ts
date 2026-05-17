@@ -18,7 +18,7 @@ export class PlayerSystem {
 
   static getOrCreate(
     discordId: string,
-    displayName: string,
+    username: string,
     avatarUrl?: string
   ): Player {
 
@@ -27,9 +27,9 @@ export class PlayerSystem {
     // تحديث الاسم تلقائي لو اتغير
     if (existing) {
 
-      if (existing.displayName !== displayName) {
+      if (existing.display_name !== username) {
         PlayerDB.update(discordId, {
-          displayName: displayName,
+          username: username,
         });
       }
 
@@ -38,7 +38,7 @@ export class PlayerSystem {
 
     return PlayerDB.findOrCreate(
       discordId,
-      displayName,
+      username,
       avatarUrl
     );
   }
@@ -74,14 +74,14 @@ export class PlayerSystem {
     if (leveledUp) {
 
       logger.game(
-        `${player.displayName} (${discordId}) leveled up to ${newLevel}`
+        `${player.display_name} (${discordId}) leveled up to ${newLevel}`
       );
     }
 
     if (rankChanged) {
 
       logger.game(
-        `${player.displayName} (${discordId}) ranked up to ${newRank.name}`
+        `${player.display_name} (${discordId}) ranked up to ${newRank.name}`
       );
 
       PlayerDB.update(discordId, {
