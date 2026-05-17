@@ -85,3 +85,22 @@ export interface InventoryItem {
   quantity: number;
   acquired_at: string;
 }
+
+export interface AdminLog {
+  id: string;
+  admin_id: string;
+  action_type: string;
+  target: string | null;
+  details: string | null;
+  before_snapshot: string | null;
+  created_at: string;
+}
+
+export interface Season {
+  id: number;
+  name: string;
+  status: 'active' | 'ended';
+  started_at: string;
+  ended_at: string | null;
+  results: string | null;
+}

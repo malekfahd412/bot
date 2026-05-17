@@ -4,7 +4,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { logger } from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { Player, HeistSubmission, Crew, Territory, Achievement } from './schema.js';
+import type { Player, HeistSubmission, Crew, Territory, Achievement, AdminLog, Season } from './schema.js';
 
 const DATA_DIR = join(process.cwd(), 'data');
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
@@ -108,20 +108,37 @@ function initSchema(database: Database.Database): void {
       unlocked_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(player_id, achievement_key)
     );
+
+    CREATE TABLE IF NOT EXISTS admin_logs (
+      id TEXT PRIMARY KEY,
+      admin_id TEXT NOT NULL,
+      action_type TEXT NOT NULL,
+      target TEXT,
+      details TEXT,
+      before_snapshot TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS seasons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT,
+      results TEXT
+    );
   `);
 }
 
 /* ─────────────────────────── MIGRATIONS ─────────────────────────── */
 
 function migrateSchema(database: Database.Database): void {
-  // Rename players.displayName → players.display_name (one-time migration)
   const playerCols = (database.prepare('PRAGMA table_info(players)').all() as { name: string }[]).map(c => c.name);
   if (playerCols.includes('displayName') && !playerCols.includes('display_name')) {
     database.exec('ALTER TABLE players RENAME COLUMN displayName TO display_name');
     logger.info('Migration: players.displayName → players.display_name');
   }
 
-  // Add new crew columns if missing
   const crewCols = (database.prepare('PRAGMA table_info(crews)').all() as { name: string }[]).map(c => c.name);
   if (!crewCols.includes('level'))
     database.exec('ALTER TABLE crews ADD COLUMN level INTEGER NOT NULL DEFAULT 1');
@@ -155,9 +172,7 @@ function seedTerritories(database: Database.Database): void {
   const insert = database.prepare(
     'INSERT OR IGNORE INTO territories (id, name, income_per_hour, risk_level) VALUES (?, ?, ?, ?)'
   );
-  for (const t of territories) {
-    insert.run(t.id, t.name, t.income_per_hour, t.risk_level);
-  }
+  for (const t of territories) insert.run(t.id, t.name, t.income_per_hour, t.risk_level);
   logger.info('Territories seeded (4 zones)');
 }
 
@@ -227,6 +242,10 @@ export const PlayerDB = {
       .get(id) as { rank: number };
     return r.rank;
   },
+
+  countAll(): number {
+    return (getDB().prepare('SELECT COUNT(*) as n FROM players').get() as { n: number }).n;
+  },
 };
 
 /* ─────────────────────────── HEIST DB ─────────────────────────── */
@@ -278,6 +297,10 @@ export const HeistDB = {
 
   getPlayerHistory(id: string, limit = 10): HeistSubmission[] {
     return getDB().prepare('SELECT * FROM heist_submissions WHERE submitter_id = ? ORDER BY created_at DESC LIMIT ?').all(id, limit) as HeistSubmission[];
+  },
+
+  countPending(): number {
+    return (getDB().prepare("SELECT COUNT(*) as n FROM heist_submissions WHERE status = 'pending'").get() as { n: number }).n;
   },
 };
 
@@ -334,13 +357,11 @@ export const CrewDB = {
 
   addReputation(crewId: string, amount: number): void {
     getDB().prepare('UPDATE crews SET reputation = reputation + ? WHERE id = ?').run(amount, crewId);
-    // Level up crew every 1000 rep
     const crew = this.findById(crewId);
     if (crew) {
       const newLevel = Math.floor(crew.reputation / 1000) + 1;
-      if (newLevel > crew.level) {
+      if (newLevel > crew.level)
         getDB().prepare('UPDATE crews SET level = ? WHERE id = ?').run(newLevel, crewId);
-      }
     }
   },
 
@@ -358,6 +379,10 @@ export const CrewDB = {
 
   getAllCrews(): Crew[] {
     return getDB().prepare('SELECT * FROM crews ORDER BY total_earnings DESC').all() as Crew[];
+  },
+
+  countAll(): number {
+    return (getDB().prepare('SELECT COUNT(*) as n FROM crews').get() as { n: number }).n;
   },
 };
 
@@ -385,6 +410,10 @@ export const TerritoryDB = {
   getControlledBy(crewId: string): Territory[] {
     return getDB().prepare('SELECT * FROM territories WHERE control_crew_id = ?').all(crewId) as Territory[];
   },
+
+  resetAllControl(): void {
+    getDB().prepare('UPDATE territories SET control_crew_id = NULL, last_contested = NULL').run();
+  },
 };
 
 /* ─────────────────────────── ACHIEVEMENT DB ─────────────────────────── */
@@ -403,5 +432,58 @@ export const AchievementDB = {
 
   getPlayerAchievements(id: string): Achievement[] {
     return getDB().prepare('SELECT * FROM achievements WHERE player_id = ? ORDER BY unlocked_at DESC').all(id) as Achievement[];
+  },
+};
+
+/* ─────────────────────────── ADMIN LOG DB ─────────────────────────── */
+
+export const AdminLogDB = {
+  insert(data: {
+    admin_id: string;
+    action_type: string;
+    target: string | null;
+    details: string | null;
+    before_snapshot: string | null;
+  }): void {
+    getDB().prepare(
+      'INSERT INTO admin_logs (id, admin_id, action_type, target, details, before_snapshot) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(uuidv4(), data.admin_id, data.action_type, data.target, data.details, data.before_snapshot);
+  },
+
+  getRecent(limit = 20): AdminLog[] {
+    return getDB()
+      .prepare('SELECT * FROM admin_logs ORDER BY created_at DESC LIMIT ?')
+      .all(limit) as AdminLog[];
+  },
+};
+
+/* ─────────────────────────── SEASON DB ─────────────────────────── */
+
+export const SeasonDB = {
+  create(name: string): Season {
+    const result = getDB()
+      .prepare("INSERT INTO seasons (name, status) VALUES (?, 'active')")
+      .run(name);
+    return this.findById(result.lastInsertRowid as number)!;
+  },
+
+  findById(id: number): Season | undefined {
+    return getDB().prepare('SELECT * FROM seasons WHERE id = ?').get(id) as Season | undefined;
+  },
+
+  getActive(): Season | undefined {
+    return getDB().prepare("SELECT * FROM seasons WHERE status = 'active' ORDER BY started_at DESC LIMIT 1").get() as Season | undefined;
+  },
+
+  end(id: number, results: string): void {
+    getDB()
+      .prepare("UPDATE seasons SET status = 'ended', ended_at = datetime('now'), results = ? WHERE id = ?")
+      .run(results, id);
+  },
+
+  getRecent(limit = 10): Season[] {
+    return getDB()
+      .prepare('SELECT * FROM seasons ORDER BY started_at DESC LIMIT ?')
+      .all(limit) as Season[];
   },
 };

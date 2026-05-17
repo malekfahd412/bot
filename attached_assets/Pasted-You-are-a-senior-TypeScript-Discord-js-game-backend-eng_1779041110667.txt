@@ -1,0 +1,181 @@
+You are a senior TypeScript + Discord.js game backend engineer.
+
+I already have a GTA-style RPG Discord bot project. It has:
+- players system
+- crews system
+- heists system
+- SQLite database
+
+Your task is to IMPLEMENT a COMPLETE ADMIN CONTROL SYSTEM with FULL GAME MASTER POWER.
+
+---
+
+# 🚨 CRITICAL REQUIREMENTS
+
+1. DO NOT break existing features
+2. DO NOT change architecture randomly
+3. Fix all TypeScript errors while implementing
+4. Keep database consistent with schema.ts
+5. Use safe transactions for reset operations
+6. Everything must be production-ready
+
+---
+
+# 🛡️ ADMIN SYSTEM (GAME MASTER MODE)
+
+Create a full Admin System that allows ONLY admins (based on role ID or permission flag) to control the entire game.
+
+---
+
+# 🎛️ REQUIRED FEATURES
+
+## 1. PLAYER RESET SYSTEM (IMPORTANT)
+
+Implement:
+
+### /admin reset player <user>
+
+Actions:
+- Reset XP to 0
+- Reset level to 1
+- Reset coins to default (1000)
+- Reset streaks
+- Reset heist history counters
+- Optionally keep display_name and avatar
+
+---
+
+## 2. GLOBAL RESET SYSTEM
+
+### /admin reset all players
+
+Must:
+- Reset ALL players safely
+- Use batch processing (not single queries loop)
+- Log before/after state
+- Require confirmation step (VERY IMPORTANT)
+
+---
+
+## 3. CREW RESET SYSTEM
+
+### /admin reset crew <crewId>
+
+Must:
+- Reset crew bank
+- Reset territory ownership
+- Reset crew level
+- Optionally disband crew or wipe members
+
+---
+
+## 4. SEASON SYSTEM (VERY IMPORTANT FEATURE)
+
+Implement:
+
+### /admin season start <seasonName>
+
+This must:
+- Archive current season data
+- Reset player progression partially or fully (configurable)
+- Reset crews or soft reset them
+- Reset territories control
+- Increase global season number
+
+### /admin season end
+
+Must:
+- Freeze game activities
+- Calculate final leaderboard
+- Store season results in database
+
+---
+
+## 5. ADMIN CONTROL PANEL (DISCORD UI)
+
+Create a main admin command:
+
+### /admin panel
+
+It should show an embed with buttons:
+
+- Reset Player
+- Reset All Players
+- Reset Crew
+- Start Season
+- End Season
+- View Stats
+
+Each button opens a follow-up interaction (modals or selects)
+
+---
+
+## 6. SAFETY SYSTEM (VERY IMPORTANT)
+
+Before ANY destructive action:
+
+- Require confirmation button:
+  [CONFIRM] / [CANCEL]
+
+- Log all actions:
+  admin_logs table or logger system
+
+- Include admin ID + timestamp + action type
+
+---
+
+## 7. LOGGING SYSTEM
+
+Create:
+
+- admin action logs
+- include:
+  - admin user
+  - action type
+  - target
+  - timestamp
+  - before/after snapshot (if possible)
+
+---
+
+## 8. DATABASE SAFETY RULES
+
+- NEVER delete tables
+- NEVER break schema
+- Use UPDATE queries safely
+- Wrap reset operations in try/catch
+- Ensure rollback safety if possible
+
+---
+
+# 🧠 ARCHITECTURE REQUIREMENT
+
+Create or refactor into:
+
+- src/admin/panel.ts
+- src/admin/reset.ts
+- src/admin/season.ts
+- src/admin/crew-control.ts
+- src/admin/logs.ts
+
+---
+
+# 🎮 UX REQUIREMENTS
+
+- Use Discord Embeds + Buttons only
+- No spam commands
+- Admin system must feel like “GTA Game Master Console”
+- Smooth interaction flow
+
+---
+
+# 🏁 FINAL RESULT
+
+After implementation:
+- Admin has full control of game state
+- Reset system works safely
+- Season system is functional
+- No TypeScript errors
+- Clean scalable structure
+
+Make it production-ready and stable.

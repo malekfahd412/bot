@@ -1,245 +1,689 @@
 import {
-  ChatInputCommandInteraction, SlashCommandBuilder,
-  EmbedBuilder, PermissionFlagsBits,
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  EmbedBuilder,
+  PermissionFlagsBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ButtonInteraction,
 } from 'discord.js';
+
 import { PlayerSystem } from '../systems/player.js';
 import { HeistSystem } from '../systems/heist.js';
-import { PlayerDB, HeistDB } from '../database/db.js';
+import { PlayerDB, HeistDB, CrewDB } from '../database/db.js';
 import { DIFFICULTY_CONFIG } from '../utils/constants.js';
 import { formatCoins, formatNumber, getRank } from '../utils/helpers.js';
 import { logger } from '../utils/logger.js';
+import { AdminLogSystem } from '../admin/logs.js';
+import { ResetSystem } from '../admin/reset.js';
+import { SeasonSystem } from '../admin/season.js';
+
+/* ─────────────────────────── PENDING CONFIRMS ─────────────────────────── */
+
+type PendingAction =
+  | { type: 'reset_player'; targetId: string; adminId: string }
+  | { type: 'reset_all'; adminId: string }
+  | { type: 'reset_crew'; crewId: string; crewName: string; wipeMembers: boolean; adminId: string }
+  | { type: 'season_start'; name: string; resetXP: boolean; resetCoins: boolean; adminId: string }
+  | { type: 'season_end'; adminId: string };
+
+const pending = new Map<string, { action: PendingAction; expiresAt: number }>();
+
+function storePending(key: string, action: PendingAction): void {
+  pending.set(key, { action, expiresAt: Date.now() + 120_000 });
+}
+
+function consumePending(key: string): PendingAction | null {
+  const entry = pending.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { pending.delete(key); return null; }
+  pending.delete(key);
+  return entry.action;
+}
+
+function confirmRow(key: string, label = '⚠️ CONFIRM'): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`admin_confirm:${key}`).setLabel(label).setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`admin_cancel:${key}`).setLabel('Cancel').setStyle(ButtonStyle.Secondary),
+  );
+}
+
+/* ─────────────────────────── COMMAND DEFINITION ─────────────────────────── */
 
 export const data = new SlashCommandBuilder()
   .setName('admin')
-  .setDescription('Admin management commands')
+  .setDescription('Admin control system')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+
+  // ── Flat subcommands ──
   .addSubcommand(sub =>
-    sub.setName('give-xp')
-      .setDescription('Award XP to a player')
-      .addUserOption(o => o.setName('player').setDescription('Target player').setRequired(true))
-      .addIntegerOption(o => o.setName('amount').setDescription('XP amount').setRequired(true).setMinValue(1).setMaxValue(100000))
-      .addStringOption(o => o.setName('reason').setDescription('Reason (optional)').setRequired(false))
-  )
-  .addSubcommand(sub =>
-    sub.setName('give-coins')
-      .setDescription('Award coins to a player')
-      .addUserOption(o => o.setName('player').setDescription('Target player').setRequired(true))
-      .addIntegerOption(o => o.setName('amount').setDescription('Coin amount').setRequired(true).setMinValue(1).setMaxValue(10000000))
-      .addStringOption(o => o.setName('reason').setDescription('Reason (optional)').setRequired(false))
+    sub.setName('panel').setDescription('Open the admin control panel')
   )
   .addSubcommand(sub =>
     sub.setName('pending')
-      .setDescription('View all pending heist submissions')
-      .addIntegerOption(o => o.setName('page').setDescription('Page number').setRequired(false).setMinValue(1))
+      .setDescription('View pending heist submissions')
+      .addIntegerOption(o => o.setName('page').setDescription('Page').setRequired(false).setMinValue(1))
   )
   .addSubcommand(sub =>
     sub.setName('inspect')
-      .setDescription('Inspect a specific heist submission by ID')
-      .addStringOption(o => o.setName('id').setDescription('Submission ID').setRequired(true))
+      .setDescription('Inspect a heist submission by ID')
+      .addStringOption(o => o.setName('id').setDescription('Submission ID (or prefix)').setRequired(true))
   )
   .addSubcommand(sub =>
-    sub.setName('lookup')
-      .setDescription("Look up a player's data")
-      .addUserOption(o => o.setName('player').setDescription('Target player').setRequired(true))
+    sub.setName('logs')
+      .setDescription('View recent admin action logs')
+      .addIntegerOption(o => o.setName('limit').setDescription('How many entries (default 15)').setRequired(false).setMinValue(1).setMaxValue(50))
   )
-  .addSubcommand(sub =>
-    sub.setName('reset-streak')
-      .setDescription("Reset a player's streak")
-      .addUserOption(o => o.setName('player').setDescription('Target player').setRequired(true))
+
+  // ── Player group ──
+  .addSubcommandGroup(group =>
+    group.setName('player').setDescription('Player management')
+      .addSubcommand(sub =>
+        sub.setName('give-xp')
+          .setDescription('Award XP to a player')
+          .addUserOption(o => o.setName('player').setDescription('Target').setRequired(true))
+          .addIntegerOption(o => o.setName('amount').setDescription('Amount').setRequired(true).setMinValue(1).setMaxValue(100000))
+          .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false))
+      )
+      .addSubcommand(sub =>
+        sub.setName('give-coins')
+          .setDescription('Award coins to a player')
+          .addUserOption(o => o.setName('player').setDescription('Target').setRequired(true))
+          .addIntegerOption(o => o.setName('amount').setDescription('Amount').setRequired(true).setMinValue(1).setMaxValue(10000000))
+          .addStringOption(o => o.setName('reason').setDescription('Reason').setRequired(false))
+      )
+      .addSubcommand(sub =>
+        sub.setName('lookup')
+          .setDescription("Look up a player's full profile")
+          .addUserOption(o => o.setName('player').setDescription('Target').setRequired(true))
+      )
+      .addSubcommand(sub =>
+        sub.setName('reset')
+          .setDescription('Reset a player\'s stats to default')
+          .addUserOption(o => o.setName('player').setDescription('Target').setRequired(true))
+          .addIntegerOption(o => o.setName('starting-coins').setDescription('Starting coins after reset (default 1000)').setRequired(false).setMinValue(0))
+      )
+      .addSubcommand(sub =>
+        sub.setName('reset-streak')
+          .setDescription("Reset a player's daily streak")
+          .addUserOption(o => o.setName('player').setDescription('Target').setRequired(true))
+      )
+  )
+
+  // ── Reset group ──
+  .addSubcommandGroup(group =>
+    group.setName('reset').setDescription('Bulk reset operations')
+      .addSubcommand(sub =>
+        sub.setName('all')
+          .setDescription('⚠️ Reset ALL players — IRREVERSIBLE')
+      )
+      .addSubcommand(sub =>
+        sub.setName('crew')
+          .setDescription('Reset a crew\'s stats and territories')
+          .addStringOption(o => o.setName('name').setDescription('Crew name').setRequired(true))
+          .addBooleanOption(o => o.setName('wipe-members').setDescription('Remove all members except owner').setRequired(false))
+      )
+  )
+
+  // ── Season group ──
+  .addSubcommandGroup(group =>
+    group.setName('season').setDescription('Season management')
+      .addSubcommand(sub =>
+        sub.setName('start')
+          .setDescription('Start a new season (ends current season if active)')
+          .addStringOption(o => o.setName('name').setDescription('Season name').setRequired(true).setMaxLength(64))
+          .addBooleanOption(o => o.setName('reset-xp').setDescription('Reset all player XP/level? (default true)').setRequired(false))
+          .addBooleanOption(o => o.setName('reset-coins').setDescription('Reset all player coins to 1000? (default false)').setRequired(false))
+      )
+      .addSubcommand(sub =>
+        sub.setName('end')
+          .setDescription('End the current active season')
+      )
+      .addSubcommand(sub =>
+        sub.setName('status')
+          .setDescription('Show current season info and history')
+      )
   );
+
+/* ─────────────────────────── EXECUTE ─────────────────────────── */
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply({ flags: 64 });
 
+  const group = interaction.options.getSubcommandGroup(false);
   const sub = interaction.options.getSubcommand();
   const adminId = interaction.user.id;
 
-  if (sub === 'give-xp') {
-    const target = interaction.options.getUser('player', true);
-    const amount = interaction.options.getInteger('amount', true);
-    const reason = interaction.options.getString('reason') ?? 'Admin grant';
-    PlayerSystem.getOrCreate(target.id, target.displayName, target.displayAvatarURL({ extension: 'png', size: 256 }));
+  /* ════════════════ FLAT SUBCOMMANDS ════════════════ */
 
-    try {
-      const result = PlayerSystem.adminGiveXP(target.id, amount);
-      const player = PlayerDB.findByDiscordId(target.id)!;
-      logger.game(`Admin ${adminId} gave ${amount} XP to ${target.id} — ${reason}`);
+  if (!group) {
+
+    if (sub === 'panel') {
+      const totalPlayers = PlayerDB.countAll();
+      const totalCrews = CrewDB.countAll();
+      const pendingCount = HeistDB.countPending();
+      const season = SeasonSystem.getActiveSeason();
+
+      const embed = new EmbedBuilder()
+        .setColor(0xC8A951)
+        .setTitle('🎛️  ADMIN CONTROL PANEL')
+        .setDescription('Game Master console for GTA Heist RPG.')
+        .addFields(
+          { name: '👥 Total Players', value: String(totalPlayers), inline: true },
+          { name: '🏴 Total Crews', value: String(totalCrews), inline: true },
+          { name: '📋 Pending Heists', value: String(pendingCount), inline: true },
+          { name: '📅 Active Season', value: season ? `**${season.name}** (started <t:${Math.floor(new Date(season.started_at).getTime() / 1000)}:R>)` : 'None', inline: false },
+        )
+        .addFields({
+          name: '⚙️ Available Commands',
+          value: [
+            '`/admin player give-xp/give-coins/lookup/reset/reset-streak`',
+            '`/admin reset all` · `/admin reset crew <name>`',
+            '`/admin season start/end/status`',
+            '`/admin pending` · `/admin inspect <id>` · `/admin logs`',
+          ].join('\n'),
+        })
+        .setFooter({ text: 'GTA Heist RPG • Admin Console' })
+        .setTimestamp();
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId('admin_panel:logs').setLabel('📜 Recent Logs').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('admin_panel:pending').setLabel('📋 Pending').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('admin_panel:season').setLabel('📅 Season').setStyle(ButtonStyle.Secondary),
+      );
+
+      await interaction.editReply({ embeds: [embed], components: [row] });
+      return;
+    }
+
+    if (sub === 'pending') {
+      const page = (interaction.options.getInteger('page') ?? 1) - 1;
+      const pageSize = 8;
+      const allPending = HeistDB.findPending();
+      const total = allPending.length;
+
+      if (total === 0) {
+        await interaction.editReply('✅ No pending submissions. Queue is clear.');
+        return;
+      }
+
+      const slice = allPending.slice(page * pageSize, (page + 1) * pageSize);
+      const totalPages = Math.ceil(total / pageSize);
 
       await interaction.editReply({
         embeds: [new EmbedBuilder()
-          .setColor(0xC8A951).setTitle('✅ XP Awarded')
+          .setColor(0xFFA502)
+          .setTitle(`📋 Pending Submissions (${total})`)
+          .setDescription(
+            slice.map((s, i) => {
+              const diff = DIFFICULTY_CONFIG[s.difficulty as keyof typeof DIFFICULTY_CONFIG];
+              return [
+                `**${page * pageSize + i + 1}.** \`${s.id.slice(0, 8)}\``,
+                `> **${s.heist_name}** — ${diff?.label ?? s.difficulty}`,
+                `> By <@${s.submitter_id}> • ${timeAgo(s.created_at)}`,
+              ].join('\n');
+            }).join('\n\n')
+          )
+          .setFooter({ text: `Page ${page + 1}/${totalPages}` })
+          .setTimestamp()],
+      });
+      return;
+    }
+
+    if (sub === 'inspect') {
+      const id = interaction.options.getString('id', true).trim();
+      const submission = HeistDB.findById(id) ?? HeistDB.findPending().find(s => s.id.startsWith(id));
+      if (!submission) { await interaction.editReply(`❌ No submission \`${id}\` found.`); return; }
+
+      const diff = DIFFICULTY_CONFIG[submission.difficulty as keyof typeof DIFFICULTY_CONFIG];
+      const teammates = HeistSystem.getTeammates(submission);
+      const statusEmoji = submission.status === 'approved' ? '✅' : submission.status === 'rejected' ? '❌' : '⏳';
+
+      await interaction.editReply({
+        embeds: [new EmbedBuilder()
+          .setColor(submission.status === 'approved' ? 0x00D26A : submission.status === 'rejected' ? 0xFF4757 : 0xC8A951)
+          .setTitle(`${statusEmoji} ${submission.heist_name}`)
+          .addFields(
+            { name: 'ID', value: `\`${submission.id}\``, inline: false },
+            { name: 'Status', value: submission.status.toUpperCase(), inline: true },
+            { name: 'Difficulty', value: diff?.label ?? submission.difficulty, inline: true },
+            { name: 'Submitted', value: `<t:${Math.floor(new Date(submission.created_at).getTime() / 1000)}:R>`, inline: true },
+            { name: 'Submitter', value: `<@${submission.submitter_id}>`, inline: true },
+            { name: 'Teammates', value: teammates.length ? teammates.map(t => `<@${t}>`).join(', ') : 'Solo', inline: true },
+            { name: 'Proof', value: `[View](${submission.proof_url})`, inline: true },
+            ...(submission.notes ? [{ name: 'Notes', value: submission.notes, inline: false }] : []),
+            ...(submission.reviewer_id ? [
+              { name: 'Reviewed By', value: `<@${submission.reviewer_id}>`, inline: true },
+              { name: 'Reviewed At', value: `<t:${Math.floor(new Date(submission.reviewed_at!).getTime() / 1000)}:f>`, inline: true },
+            ] : []),
+            ...(submission.xp_awarded != null ? [
+              { name: 'XP Awarded', value: `+${formatNumber(submission.xp_awarded)} XP`, inline: true },
+              { name: 'Coins', value: formatCoins(submission.coins_awarded!), inline: true },
+            ] : []),
+          ).setTimestamp()],
+      });
+      return;
+    }
+
+    if (sub === 'logs') {
+      const limit = interaction.options.getInteger('limit') ?? 15;
+      const logs = AdminLogSystem.getRecent(limit);
+
+      await interaction.editReply({
+        embeds: [new EmbedBuilder()
+          .setColor(0x8B8FA8)
+          .setTitle('📜 Admin Action Log')
+          .setDescription(AdminLogSystem.formatForEmbed(logs))
+          .setFooter({ text: `Last ${limit} actions` })
+          .setTimestamp()],
+      });
+      return;
+    }
+  }
+
+  /* ════════════════ PLAYER GROUP ════════════════ */
+
+  if (group === 'player') {
+
+    if (sub === 'give-xp') {
+      const target = interaction.options.getUser('player', true);
+      const amount = interaction.options.getInteger('amount', true);
+      const reason = interaction.options.getString('reason') ?? 'Admin grant';
+
+      PlayerSystem.getOrCreate(target.id, target.displayName, target.displayAvatarURL({ extension: 'png', size: 256 }));
+      const result = PlayerSystem.adminGiveXP(target.id, amount);
+      const player = PlayerDB.findByDiscordId(target.id)!;
+
+      AdminLogSystem.log({ adminId, actionType: 'give_xp', target: target.id, details: { amount, reason } });
+
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xC8A951).setTitle('✅ XP Awarded')
           .addFields(
             { name: 'Player', value: `<@${target.id}>`, inline: true },
-            { name: 'XP Awarded', value: `+${formatNumber(amount)} XP`, inline: true },
+            { name: 'XP Added', value: `+${formatNumber(amount)}`, inline: true },
             { name: 'New Total', value: `${formatNumber(player.xp)} XP`, inline: true },
-            { name: 'Level', value: `${player.level}`, inline: true },
-            { name: 'Leveled Up?', value: result.leveledUp ? `Yes → Level ${result.newLevel}` : 'No', inline: true },
-            { name: 'Rank Change?', value: result.rankChanged ? `→ ${result.newRank}` : 'No', inline: true },
+            { name: 'Level', value: String(player.level), inline: true },
+            { name: 'Leveled Up', value: result.leveledUp ? `→ Level ${result.newLevel}` : 'No', inline: true },
+            { name: 'Rank Change', value: result.rankChanged ? `→ ${result.newRank}` : 'No', inline: true },
             { name: 'Reason', value: reason },
           ).setTimestamp()],
       });
-    } catch (err) {
-      await interaction.editReply(`❌ ${err instanceof Error ? err.message : 'Failed to award XP.'}`);
+      return;
     }
-    return;
-  }
 
-  if (sub === 'give-coins') {
-    const target = interaction.options.getUser('player', true);
-    const amount = interaction.options.getInteger('amount', true);
-    const reason = interaction.options.getString('reason') ?? 'Admin grant';
-    PlayerSystem.getOrCreate(target.id, target.displayName, target.displayAvatarURL({ extension: 'png', size: 256 }));
+    if (sub === 'give-coins') {
+      const target = interaction.options.getUser('player', true);
+      const amount = interaction.options.getInteger('amount', true);
+      const reason = interaction.options.getString('reason') ?? 'Admin grant';
 
-    try {
+      PlayerSystem.getOrCreate(target.id, target.displayName, target.displayAvatarURL({ extension: 'png', size: 256 }));
       PlayerSystem.giveCoins(target.id, amount);
       const player = PlayerDB.findByDiscordId(target.id)!;
-      logger.game(`Admin ${adminId} gave ${amount} coins to ${target.id} — ${reason}`);
+
+      AdminLogSystem.log({ adminId, actionType: 'give_coins', target: target.id, details: { amount, reason } });
 
       await interaction.editReply({
-        embeds: [new EmbedBuilder()
-          .setColor(0xFFD700).setTitle('✅ Coins Awarded')
+        embeds: [new EmbedBuilder().setColor(0xFFD700).setTitle('✅ Coins Awarded')
           .addFields(
             { name: 'Player', value: `<@${target.id}>`, inline: true },
-            { name: 'Coins Awarded', value: formatCoins(amount), inline: true },
+            { name: 'Coins Added', value: formatCoins(amount), inline: true },
             { name: 'New Balance', value: formatCoins(player.coins), inline: true },
             { name: 'Reason', value: reason },
           ).setTimestamp()],
       });
-    } catch (err) {
-      await interaction.editReply(`❌ ${err instanceof Error ? err.message : 'Failed to award coins.'}`);
-    }
-    return;
-  }
-
-  if (sub === 'pending') {
-    const page = (interaction.options.getInteger('page') ?? 1) - 1;
-    const pageSize = 8;
-    const allPending = HeistDB.findPending();
-    const total = allPending.length;
-
-    if (total === 0) {
-      await interaction.editReply('✅ No pending submissions. The queue is clear.');
       return;
     }
 
-    const slice = allPending.slice(page * pageSize, (page + 1) * pageSize);
-    const totalPages = Math.ceil(total / pageSize);
+    if (sub === 'lookup') {
+      const target = interaction.options.getUser('player', true);
+      const player = PlayerDB.findByDiscordId(target.id);
+      if (!player) { await interaction.editReply(`❌ **${target.displayName}** has no profile.`); return; }
 
-    await interaction.editReply({
-      embeds: [new EmbedBuilder()
-        .setColor(0xFFA502)
-        .setTitle(`📋 Pending Submissions (${total} total)`)
-        .setDescription(
-          slice.map((s, i) => {
-            const diffConfig = DIFFICULTY_CONFIG[s.difficulty as keyof typeof DIFFICULTY_CONFIG];
-            const ago = formatTimeAgo(new Date(s.created_at));
-            return [
-              `**${page * pageSize + i + 1}.** \`${s.id.slice(0, 8)}\``,
-              `> **${s.heist_name}** — ${diffConfig?.label ?? s.difficulty}`,
-              `> By <@${s.submitter_id}> • ${ago}`,
-            ].join('\n');
-          }).join('\n\n')
-        )
-        .setFooter({ text: `Page ${page + 1}/${totalPages} • Use /admin inspect <id>` })
-        .setTimestamp()],
-    });
-    return;
-  }
+      const rank = getRank(player.level);
+      const globalRank = PlayerSystem.getPlayerRank(target.id);
 
-  if (sub === 'inspect') {
-    const id = interaction.options.getString('id', true).trim();
-    const allPending = HeistDB.findPending();
-    const submission = HeistDB.findById(id) ?? allPending.find(s => s.id.startsWith(id));
-
-    if (!submission) {
-      await interaction.editReply(`❌ No submission found with ID \`${id}\`.`);
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xC8A951)
+          .setTitle(`Admin Lookup: ${player.display_name}`)
+          .setThumbnail(target.displayAvatarURL())
+          .addFields(
+            { name: 'Discord ID', value: `\`${player.discord_id}\``, inline: true },
+            { name: 'Global Rank', value: `#${globalRank}`, inline: true },
+            { name: 'Level / XP', value: `${player.level} / ${formatNumber(player.xp)} XP`, inline: true },
+            { name: 'Coins', value: formatCoins(player.coins), inline: true },
+            { name: 'Rank', value: `${rank.icon} ${rank.name}`, inline: true },
+            { name: 'Heists', value: `${player.total_heists} total (${player.successful_heists} ✓)`, inline: true },
+            { name: 'Streak', value: `${player.streak_current} days (best: ${player.streak_longest})`, inline: true },
+            { name: 'Crew', value: player.crew_id ?? 'None', inline: true },
+            { name: 'Joined', value: `<t:${Math.floor(new Date(player.created_at).getTime() / 1000)}:D>`, inline: true },
+          ).setTimestamp()],
+      });
       return;
     }
 
-    const diffConfig = DIFFICULTY_CONFIG[submission.difficulty as keyof typeof DIFFICULTY_CONFIG];
-    const teammates = HeistSystem.getTeammates(submission);
-    const statusEmoji = submission.status === 'approved' ? '✅' : submission.status === 'rejected' ? '❌' : '⏳';
+    if (sub === 'reset') {
+      const target = interaction.options.getUser('player', true);
+      const startingCoins = interaction.options.getInteger('starting-coins') ?? 1000;
+      const player = PlayerDB.findByDiscordId(target.id);
+      if (!player) { await interaction.editReply(`❌ **${target.displayName}** has no profile.`); return; }
 
-    await interaction.editReply({
-      embeds: [new EmbedBuilder()
-        .setColor(submission.status === 'approved' ? 0x00D26A : submission.status === 'rejected' ? 0xFF4757 : 0xC8A951)
-        .setTitle(`${statusEmoji} ${submission.heist_name}`)
-        .addFields(
-          { name: 'ID', value: `\`${submission.id}\``, inline: false },
-          { name: 'Status', value: submission.status.toUpperCase(), inline: true },
-          { name: 'Difficulty', value: diffConfig?.label ?? submission.difficulty, inline: true },
-          { name: 'Submitted', value: new Date(submission.created_at).toLocaleString(), inline: true },
-          { name: 'Submitter', value: `<@${submission.submitter_id}>`, inline: true },
-          { name: 'Teammates', value: teammates.length > 0 ? teammates.map(t => `<@${t}>`).join(', ') : 'Solo', inline: true },
-          { name: 'Proof', value: `[View Link](${submission.proof_url})`, inline: true },
-          ...(submission.notes ? [{ name: 'Notes', value: submission.notes, inline: false }] : []),
-          ...(submission.reviewer_id ? [
-            { name: 'Reviewed By', value: `<@${submission.reviewer_id}>`, inline: true },
-            { name: 'Reviewed At', value: new Date(submission.reviewed_at!).toLocaleString(), inline: true },
-          ] : []),
-          ...(submission.reviewer_note ? [{ name: 'Review Note', value: submission.reviewer_note }] : []),
-          ...(submission.xp_awarded != null ? [
-            { name: 'XP Awarded', value: `+${formatNumber(submission.xp_awarded)} XP`, inline: true },
-            { name: 'Coins Awarded', value: formatCoins(submission.coins_awarded!), inline: true },
-          ] : []),
-        ).setTimestamp()],
-    });
-    return;
-  }
+      const key = `${adminId}_reset_player_${target.id}`;
+      storePending(key, { type: 'reset_player', targetId: target.id, adminId });
 
-  if (sub === 'lookup') {
-    const target = interaction.options.getUser('player', true);
-    const player = PlayerDB.findByDiscordId(target.id);
-
-    if (!player) {
-      await interaction.editReply(`❌ **${target.displayName}** has no profile yet.`);
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFF4757)
+          .setTitle('⚠️ Confirm Player Reset')
+          .setDescription(
+            `You are about to **fully reset** <@${target.id}>.\n\n` +
+            `**Current stats:**\n` +
+            `> Level ${player.level} · ${formatNumber(player.xp)} XP · ${formatCoins(player.coins)}\n\n` +
+            `**After reset:**\n> Level 1 · 0 XP · ${formatCoins(startingCoins)}\n\n` +
+            `All heist history, streaks, and rank will be wiped.\n**This cannot be undone.**`
+          ).setTimestamp()],
+        components: [confirmRow(key, '⚠️ RESET PLAYER')],
+      });
       return;
     }
 
-    const rank = getRank(player.level);
-    const globalRank = PlayerSystem.getPlayerRank(target.id);
+    if (sub === 'reset-streak') {
+      const target = interaction.options.getUser('player', true);
+      const player = PlayerDB.findByDiscordId(target.id);
+      if (!player) { await interaction.editReply(`❌ **${target.displayName}** has no profile.`); return; }
 
-    await interaction.editReply({
-      embeds: [new EmbedBuilder()
-        .setColor(0xC8A951)
-        .setTitle(`Admin Lookup: ${player.display_name}`)
-        .setThumbnail(target.displayAvatarURL())
-        .addFields(
-          { name: 'Discord ID', value: `\`${player.discord_id}\``, inline: true },
-          { name: 'Global Rank', value: `#${globalRank}`, inline: true },
-          { name: 'Level', value: String(player.level), inline: true },
-          { name: 'XP', value: `${formatNumber(player.xp)} XP`, inline: true },
-          { name: 'Coins', value: formatCoins(player.coins), inline: true },
-          { name: 'Rank', value: `${rank.icon} ${rank.name}`, inline: true },
-          { name: 'Total Heists', value: String(player.total_heists), inline: true },
-          { name: 'Successful', value: String(player.successful_heists), inline: true },
-          { name: 'Streak', value: `${player.streak_current} days (best: ${player.streak_longest})`, inline: true },
-          { name: 'Crew', value: player.crew_id ?? 'None', inline: true },
-          { name: 'Joined', value: new Date(player.created_at).toLocaleDateString(), inline: true },
-          { name: 'Last Heist', value: player.last_heist ? new Date(player.last_heist).toLocaleDateString() : 'Never', inline: true },
-        ).setTimestamp()],
-    });
-    return;
+      PlayerDB.update(target.id, { streak_current: 0 });
+      AdminLogSystem.log({ adminId, actionType: 'reset_streak', target: target.id, details: { was: player.streak_current } });
+
+      await interaction.editReply(`✅ Streak reset for **${player.display_name}** (was **${player.streak_current}** days).`);
+      return;
+    }
   }
 
-  if (sub === 'reset-streak') {
-    const target = interaction.options.getUser('player', true);
-    const player = PlayerDB.findByDiscordId(target.id);
+  /* ════════════════ RESET GROUP ════════════════ */
 
-    if (!player) {
-      await interaction.editReply(`❌ **${target.displayName}** has no profile.`);
+  if (group === 'reset') {
+
+    if (sub === 'all') {
+      const totalPlayers = PlayerDB.countAll();
+      const key = `${adminId}_reset_all`;
+      storePending(key, { type: 'reset_all', adminId });
+
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFF4757)
+          .setTitle('☢️ GLOBAL RESET — CONFIRM')
+          .setDescription(
+            `This will reset **all ${totalPlayers} players** to zero.\n\n` +
+            `Every player's XP, level, coins, heist history, and streaks will be wiped.\n\n` +
+            `⚠️ **This action is permanent and cannot be undone.**\n` +
+            `Confirmation expires in 2 minutes.`
+          ).setTimestamp()],
+        components: [confirmRow(key, '☢️ RESET ALL PLAYERS')],
+      });
       return;
     }
 
-    PlayerDB.update(target.id, { streak_current: 0 });
-    logger.game(`Admin ${adminId} reset streak for ${target.id}`);
-    await interaction.editReply(`✅ Streak reset for **${player.display_name}** (was **${player.streak_current} days**).`);
-    return;
+    if (sub === 'crew') {
+      const crewName = interaction.options.getString('name', true).trim();
+      const wipeMembers = interaction.options.getBoolean('wipe-members') ?? false;
+      const crew = CrewDB.findByName(crewName);
+
+      if (!crew) { await interaction.editReply(`❌ No crew named **${crewName}** found.`); return; }
+
+      const key = `${adminId}_reset_crew_${crew.id}`;
+      storePending(key, { type: 'reset_crew', crewId: crew.id, crewName: crew.name, wipeMembers, adminId });
+
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFF4757)
+          .setTitle(`⚠️ Reset Crew — ${crew.name}`)
+          .setDescription(
+            `**What will be reset:**\n` +
+            `> Bank balance (${formatCoins(crew.bank_balance)}) → $0\n` +
+            `> Reputation (${crew.reputation}) → 0\n` +
+            `> Level (${crew.level}) → 1\n` +
+            `> Territory control → released\n` +
+            `> Heist/earnings history → zeroed\n` +
+            (wipeMembers ? `> **All members except owner will be removed**\n` : '') +
+            `\n**This cannot be undone.**`
+          ).setTimestamp()],
+        components: [confirmRow(key, '⚠️ RESET CREW')],
+      });
+      return;
+    }
+  }
+
+  /* ════════════════ SEASON GROUP ════════════════ */
+
+  if (group === 'season') {
+
+    if (sub === 'start') {
+      const name = interaction.options.getString('name', true).trim();
+      const resetXP = interaction.options.getBoolean('reset-xp') ?? true;
+      const resetCoins = interaction.options.getBoolean('reset-coins') ?? false;
+      const totalPlayers = PlayerDB.countAll();
+      const active = SeasonSystem.getActiveSeason();
+
+      const key = `${adminId}_season_start`;
+      storePending(key, { type: 'season_start', name, resetXP, resetCoins, adminId });
+
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFF4757)
+          .setTitle(`⚠️ Start Season — "${name}"`)
+          .setDescription(
+            (active ? `⚡ **Current season "${active.name}" will be ended automatically.**\n\n` : '') +
+            `**Resets applied to all ${totalPlayers} players:**\n` +
+            `> XP + Level: ${resetXP ? '✅ Reset to 0' : '❌ Kept'}\n` +
+            `> Coins: ${resetCoins ? '✅ Reset to $1,000' : '❌ Kept'}\n` +
+            `> Streaks: ✅ Reset\n` +
+            `> Territories: ✅ Released\n` +
+            `> Crew bank/rep/level: ✅ Reset\n\n` +
+            `**This cannot be undone.**`
+          ).setTimestamp()],
+        components: [confirmRow(key, '▶️ START SEASON')],
+      });
+      return;
+    }
+
+    if (sub === 'end') {
+      const active = SeasonSystem.getActiveSeason();
+      if (!active) { await interaction.editReply('❌ No active season to end.'); return; }
+
+      const key = `${adminId}_season_end`;
+      storePending(key, { type: 'season_end', adminId });
+
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0xFFA502)
+          .setTitle(`⚠️ End Season — "${active.name}"`)
+          .setDescription(
+            `The current season **"${active.name}"** will be ended.\n\n` +
+            `A final leaderboard snapshot will be saved.\n` +
+            `No player data will be reset — use \`/admin season start\` to begin a fresh season.`
+          ).setTimestamp()],
+        components: [confirmRow(key, '⏹ END SEASON')],
+      });
+      return;
+    }
+
+    if (sub === 'status') {
+      const active = SeasonSystem.getActiveSeason();
+      const history = SeasonSystem.getHistory(5);
+
+      const embed = new EmbedBuilder().setColor(0xC8A951).setTitle('📅 Season Status');
+
+      if (active) {
+        embed.addFields({
+          name: '🟢 Active Season',
+          value: `**${active.name}**\nStarted <t:${Math.floor(new Date(active.started_at).getTime() / 1000)}:R>`,
+        });
+      } else {
+        embed.setDescription('No active season running.');
+      }
+
+      const past = history.filter(s => s.status === 'ended');
+      if (past.length) {
+        embed.addFields({
+          name: '📁 Past Seasons',
+          value: past.map(s => {
+            const top = SeasonSystem.getTopFromSeason(s);
+            const winner = top[0]?.display_name ?? 'Unknown';
+            return `**${s.name}** — ended <t:${Math.floor(new Date(s.ended_at!).getTime() / 1000)}:D> · 🏆 ${winner}`;
+          }).join('\n'),
+        });
+      }
+
+      embed.setFooter({ text: 'GTA Heist RPG • Season System' }).setTimestamp();
+      await interaction.editReply({ embeds: [embed] });
+      return;
+    }
   }
 }
 
-function formatTimeAgo(date: Date): string {
-  const diff = Date.now() - date.getTime();
+/* ─────────────────────────── BUTTON HANDLER ─────────────────────────── */
+
+export async function handleAdminButton(button: ButtonInteraction): Promise<void> {
+  const [action, key] = button.customId.split(':');
+
+  /* ─── PANEL SHORTCUTS ─── */
+  if (action === 'admin_panel') {
+    await button.deferReply({ ephemeral: true });
+
+    if (key === 'logs') {
+      const logs = AdminLogSystem.getRecent(15);
+      await button.editReply({
+        embeds: [new EmbedBuilder().setColor(0x8B8FA8)
+          .setTitle('📜 Recent Admin Actions')
+          .setDescription(AdminLogSystem.formatForEmbed(logs))
+          .setTimestamp()],
+      });
+      return;
+    }
+
+    if (key === 'pending') {
+      const count = HeistDB.countPending();
+      await button.editReply({
+        content: count > 0
+          ? `📋 **${count}** pending submission${count !== 1 ? 's' : ''}. Use \`/admin pending\` to review them.`
+          : '✅ No pending submissions.',
+      });
+      return;
+    }
+
+    if (key === 'season') {
+      const active = SeasonSystem.getActiveSeason();
+      await button.editReply({
+        embeds: [new EmbedBuilder().setColor(0xC8A951)
+          .setTitle('📅 Season Status')
+          .setDescription(active
+            ? `**Active:** ${active.name}\nStarted <t:${Math.floor(new Date(active.started_at).getTime() / 1000)}:R>`
+            : 'No active season. Use `/admin season start` to begin one.')
+          .setTimestamp()],
+      });
+      return;
+    }
+    return;
+  }
+
+  /* ─── CANCEL ─── */
+  if (action === 'admin_cancel') {
+    consumePending(key);
+    await button.update({ content: '❌ Action cancelled.', embeds: [], components: [] });
+    return;
+  }
+
+  /* ─── CONFIRM ─── */
+  if (action === 'admin_confirm') {
+    const pa = consumePending(key);
+    if (!pa) {
+      await button.update({ content: '⏰ This confirmation has expired. Run the command again.', embeds: [], components: [] });
+      return;
+    }
+
+    // Verify the confirming admin is the same one who initiated
+    if (pa.adminId !== button.user.id) {
+      await button.reply({ content: '🚫 Only the admin who initiated this action can confirm it.', ephemeral: true });
+      return;
+    }
+
+    await button.deferUpdate();
+
+    try {
+      if (pa.type === 'reset_player') {
+        ResetSystem.resetPlayer(pa.targetId, pa.adminId);
+        await button.editReply({
+          embeds: [new EmbedBuilder().setColor(0x00D26A)
+            .setTitle('✅ Player Reset Complete')
+            .setDescription(`<@${pa.targetId}> has been reset to Level 1, 0 XP, $1,000 coins.`)
+            .setTimestamp()],
+          components: [],
+        });
+        return;
+      }
+
+      if (pa.type === 'reset_all') {
+        const affected = ResetSystem.resetAllPlayers(pa.adminId);
+        await button.editReply({
+          embeds: [new EmbedBuilder().setColor(0x00D26A)
+            .setTitle('✅ Global Reset Complete')
+            .setDescription(`**${affected}** players reset to Level 1, 0 XP, $1,000 coins.`)
+            .setTimestamp()],
+          components: [],
+        });
+        return;
+      }
+
+      if (pa.type === 'reset_crew') {
+        ResetSystem.resetCrew(pa.crewId, pa.adminId, { wipeMembers: pa.wipeMembers });
+        await button.editReply({
+          embeds: [new EmbedBuilder().setColor(0x00D26A)
+            .setTitle(`✅ Crew Reset — ${pa.crewName}`)
+            .setDescription(`Bank, reputation, level, and territories wiped.${pa.wipeMembers ? '\nAll members removed except the owner.' : ''}`)
+            .setTimestamp()],
+          components: [],
+        });
+        return;
+      }
+
+      if (pa.type === 'season_start') {
+        const season = SeasonSystem.startSeason({ name: pa.name, resetXP: pa.resetXP, resetCoins: pa.resetCoins }, pa.adminId);
+        await button.editReply({
+          embeds: [new EmbedBuilder().setColor(0x00D26A)
+            .setTitle(`✅ Season "${pa.name}" Started`)
+            .setDescription(`Season #${season.id} is now active.\nXP reset: **${pa.resetXP ? 'Yes' : 'No'}** · Coins reset: **${pa.resetCoins ? 'Yes' : 'No'}**`)
+            .setTimestamp()],
+          components: [],
+        });
+        return;
+      }
+
+      if (pa.type === 'season_end') {
+        const season = SeasonSystem.endSeason(pa.adminId);
+        const top = SeasonSystem.getTopFromSeason(season);
+        const podium = top.slice(0, 3).map((p, i) => `${['🥇','🥈','🥉'][i]} ${p.display_name} — LVL ${p.level}`).join('\n');
+
+        await button.editReply({
+          embeds: [new EmbedBuilder().setColor(0xC8A951)
+            .setTitle(`🏁 Season "${season.name}" Ended`)
+            .addFields({ name: '🏆 Top 3', value: podium || 'No results.' })
+            .setTimestamp()],
+          components: [],
+        });
+        return;
+      }
+
+    } catch (err) {
+      logger.error('Admin confirm action failed:', err);
+      await button.editReply({
+        content: `❌ ${err instanceof Error ? err.message : 'Action failed. Check logs.'}`,
+        embeds: [],
+        components: [],
+      });
+    }
+  }
+}
+
+/* ─────────────────────────── HELPERS ─────────────────────────── */
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);

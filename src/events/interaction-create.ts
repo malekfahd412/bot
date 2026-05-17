@@ -9,6 +9,7 @@ import { ApprovalSystem } from '../systems/approval.js';
 import { HeistSystem } from '../systems/heist.js';
 import { getEventEngine } from '../systems/events.js';
 import { handleHeistModal } from '../commands/heist-log.js';
+import { handleAdminButton } from '../commands/admin.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
 import { handleCrewSelect } from '../interactions/crewSelect.js';
 import { handleCrewJoin } from '../interactions/crewJoin.js';
@@ -71,34 +72,25 @@ export async function execute(
   if (!interaction.inGuild()) return;
 
   const button = interaction as ButtonInteraction;
-  const [action, id] = button.customId.split(':');
+  const customId = button.customId;
+  const [action] = customId.split(':');
 
-  /* ─── EVENT ENGINE BUTTONS ─── */
+  /* ─── EVENT ENGINE ─── */
   if (action === 'event_join') {
+    const eventId = customId.slice('event_join:'.length);
     const engine = getEventEngine();
-    if (!engine) {
-      await button.reply({ content: '⚠️ Event engine is offline.', ephemeral: true });
-      return;
-    }
-    try {
-      await engine.handleJoin(button, id);
-    } catch (err) {
-      logger.error('Event join error:', err);
-    }
+    if (!engine) { await button.reply({ content: '⚠️ Event engine is offline.', ephemeral: true }); return; }
+    try { await engine.handleJoin(button, eventId); } catch (err) { logger.error('Event join error:', err); }
     return;
   }
 
   if (action === 'event_skip') {
     const engine = getEventEngine();
-    try {
-      await engine?.handleSkip(button);
-    } catch (err) {
-      logger.error('Event skip error:', err);
-    }
+    try { await engine?.handleSkip(button); } catch (err) { logger.error('Event skip error:', err); }
     return;
   }
 
-  /* ─── CREW JOIN BUTTON ─── */
+  /* ─── CREW JOIN ─── */
   if (action === 'crew_join') {
     try {
       await handleCrewJoin(button);
@@ -109,35 +101,33 @@ export async function execute(
     return;
   }
 
-  /* ─── ADMIN PANEL BYPASS ─── */
-  if (action === 'admin') return;
+  /* ─── ADMIN SYSTEM (panel, confirm, cancel) ─── */
+  if (action === 'admin_panel' || action === 'admin_confirm' || action === 'admin_cancel') {
+    const isAdmin = button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
+    if (!isAdmin) { await button.reply({ content: '🚫 Admin only.', ephemeral: true }); return; }
+    try { await handleAdminButton(button); } catch (err) { logger.error('Admin button error:', err); }
+    return;
+  }
 
   /* ─── BOT RESET ─── */
-  if (button.customId === 'bot_reset_confirm') {
+  if (customId === 'bot_reset_confirm') {
     const isAdmin = button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
-    if (!isAdmin) {
-      await button.reply({ content: '🚫 Admin only', ephemeral: true });
-      return;
-    }
-    await button.reply({ content: '🧹 Reset running...', ephemeral: true });
+    if (!isAdmin) { await button.reply({ content: '🚫 Admin only', ephemeral: true }); return; }
+    await button.reply({ content: '🧹 Resetting commands...', ephemeral: true });
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN!);
     try {
       await rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!), { body: [] });
-      await button.followUp({ content: '✅ Reset done', ephemeral: true });
-    } catch (err) {
-      logger.error(String(err));
-    }
+      await button.followUp({ content: '✅ Commands cleared.', ephemeral: true });
+    } catch (err) { logger.error(String(err)); }
     return;
   }
 
-  /* ─── ADMIN GUARD ─── */
+  /* ─── ADMIN GUARD for heist approve/reject ─── */
   const isAdmin = button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
-  if (!isAdmin) {
-    await button.reply({ content: '🚫 Admin only', ephemeral: true });
-    return;
-  }
+  if (!isAdmin) { await button.reply({ content: '🚫 Admin only', ephemeral: true }); return; }
 
   /* ─── HEIST APPROVE / REJECT ─── */
+  const id = customId.split(':')[1];
   try {
     let response: { content: string; files: AttachmentBuilder[]; components: never[] } | undefined;
 
@@ -150,11 +140,7 @@ export async function execute(
         HeistSystem.getTeammates(result.submission).map(t => `<@${t}>`),
         result.xpAwarded, result.coinsAwarded, true
       );
-      response = {
-        content: `✅ Approved by <@${button.user.id}>`,
-        files: [new AttachmentBuilder(buffer, { name: 'heist.png' })],
-        components: [],
-      };
+      response = { content: `✅ Approved by <@${button.user.id}>`, files: [new AttachmentBuilder(buffer, { name: 'heist.png' })], components: [] };
     } else if (action === 'heist_reject') {
       const submission = ApprovalSystem.reject(id, button.user.id);
       const buffer = await generateMissionCard(
@@ -164,11 +150,7 @@ export async function execute(
         HeistSystem.getTeammates(submission).map(t => `<@${t}>`),
         0, 0, false
       );
-      response = {
-        content: `❌ Rejected by <@${button.user.id}>`,
-        files: [new AttachmentBuilder(buffer, { name: 'heist.png' })],
-        components: [],
-      };
+      response = { content: `❌ Rejected by <@${button.user.id}>`, files: [new AttachmentBuilder(buffer, { name: 'heist.png' })], components: [] };
     }
 
     if (!response) return;
@@ -182,6 +164,6 @@ export async function execute(
       } else {
         await button.reply({ content: '❌ Error', ephemeral: true }).catch(() => null);
       }
-    } catch {}
+    } catch { /* swallow */ }
   }
 }
