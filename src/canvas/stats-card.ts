@@ -11,7 +11,7 @@ import {
 } from './renderer.js';
 
 import { COLORS } from '../utils/constants.js';
-import { getRank, formatCoins, formatNumber } from '../utils/helpers.js';
+import { getRank, formatCoins, formatNumber, getSuccessRate } from '../utils/helpers.js';
 import type { Player, HeistSubmission } from '../database/schema.js';
 import type { Crew } from '../database/schema.js';
 
@@ -380,6 +380,137 @@ export async function generateCrewCard(
   return canvasToBuffer(canvas);
 }
 
-export function generateStatsCard(player: Player, recentHeists: HeistSubmission[]) {
-    throw new Error('Function not implemented.');
+const STATS_BG_PATH = 'assets/backgrounds/profile-card.png';
+
+export async function generateStatsCard(player: Player, recentHeists: HeistSubmission[]): Promise<Buffer> {
+  const W = 700;
+  const H = 520;
+
+  const { canvas, ctx } = makeCanvas(W, H);
+
+  // Background
+  const bg = await tryLoadImage(STATS_BG_PATH);
+  if (bg) {
+    ctx.drawImage(bg as any, 0, 0, W, H);
+  } else {
+    const grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, '#0A0A14');
+    grad.addColorStop(1, '#0D0A00');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, W, H);
+  drawGrid(ctx, 0, 0, W, H, 35);
+
+  // Accent stripe
+  ctx.fillStyle = COLORS.primary;
+  ctx.fillRect(0, 0, 4, H);
+
+  // Title
+  drawGlowText(ctx, 'CRIMINAL STATISTICS', 20, 46, '#FFFFFF', COLORS.primary, 22, 'bold');
+  ctx.font = '13px Arial';
+  ctx.fillStyle = COLORS.textMuted;
+  ctx.textAlign = 'left';
+  ctx.fillText(player.displayName.toUpperCase(), 20, 68);
+
+  const rank = getRank(player.level);
+  ctx.font = 'bold 13px Arial';
+  ctx.fillStyle = rank.color;
+  ctx.textAlign = 'right';
+  ctx.fillText(`${rank.icon} ${rank.name}  •  LVL ${player.level}`, W - 20, 46);
+
+  // Stat boxes
+  const stats = [
+    { label: 'TOTAL XP', value: formatNumber(player.xp), color: COLORS.primary },
+    { label: 'COINS', value: formatCoins(player.coins), color: COLORS.gold },
+    { label: 'TOTAL HEISTS', value: String(player.total_heists), color: '#FFFFFF' },
+    { label: 'SUCCESSFUL', value: String(player.successful_heists), color: COLORS.success },
+    { label: 'FAILED', value: String(player.failed_heists), color: COLORS.danger },
+    { label: 'SUCCESS RATE', value: getSuccessRate(player.total_heists, player.successful_heists), color: COLORS.success },
+    { label: 'TOTAL EARNED', value: formatCoins(player.total_earnings), color: COLORS.gold },
+    { label: 'BEST STREAK', value: `${player.streak_longest} 🔥`, color: COLORS.warning },
+    { label: 'HARDEST JOB', value: (player.hardest_heist ?? 'NONE').toUpperCase(), color: COLORS.accent },
+  ];
+
+  const cols = 3;
+  const boxW = (W - 40) / cols;
+  const boxH = 70;
+  const startY = 90;
+
+  stats.forEach((stat, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const sx = 20 + col * boxW;
+    const sy = startY + row * (boxH + 8);
+
+    fillRoundedRect(ctx, sx + 4, sy, boxW - 8, boxH, 8, 'rgba(255,255,255,0.03)');
+    strokeRoundedRect(ctx, sx + 4, sy, boxW - 8, boxH, 8, 'rgba(200,169,81,0.12)', 1);
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 20px Arial';
+    ctx.fillStyle = stat.color;
+    ctx.fillText(stat.value, sx + boxW / 2, sy + 32);
+
+    ctx.font = '11px Arial';
+    ctx.fillStyle = COLORS.textMuted;
+    ctx.fillText(stat.label, sx + boxW / 2, sy + 52);
+  });
+
+  // Recent heists section
+  const sectionY = startY + 3 * (boxH + 8) + 12;
+
+  ctx.font = 'bold 12px Arial';
+  ctx.fillStyle = COLORS.textMuted;
+  ctx.textAlign = 'left';
+  ctx.fillText('RECENT OPERATIONS', 24, sectionY + 14);
+
+  ctx.strokeStyle = 'rgba(200,169,81,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(20, sectionY + 20);
+  ctx.lineTo(W - 20, sectionY + 20);
+  ctx.stroke();
+
+  if (recentHeists.length === 0) {
+    ctx.font = '13px Arial';
+    ctx.fillStyle = COLORS.textMuted;
+    ctx.textAlign = 'center';
+    ctx.fillText('No operations on record.', W / 2, sectionY + 50);
+  } else {
+    recentHeists.slice(0, 4).forEach((h, i) => {
+      const hy = sectionY + 28 + i * 36;
+      const statusColor = h.status === 'approved' ? COLORS.success : h.status === 'rejected' ? COLORS.danger : COLORS.warning;
+
+      fillRoundedRect(ctx, 20, hy, W - 40, 30, 6, 'rgba(255,255,255,0.025)');
+
+      ctx.font = 'bold 13px Arial';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'left';
+      ctx.fillText(h.heist_name.toUpperCase(), 32, hy + 20);
+
+      ctx.font = '11px Arial';
+      ctx.fillStyle = COLORS.textMuted;
+      ctx.textAlign = 'center';
+      ctx.fillText(h.difficulty.toUpperCase(), W / 2, hy + 20);
+
+      ctx.font = 'bold 12px Arial';
+      ctx.fillStyle = statusColor;
+      ctx.textAlign = 'right';
+      ctx.fillText(h.status.toUpperCase(), W - 32, hy + 20);
+    });
+  }
+
+  // Footer
+  fillRoundedRect(ctx, 0, H - 28, W, 28, 0, 'rgba(200,169,81,0.06)');
+  ctx.font = '11px Arial';
+  ctx.fillStyle = 'rgba(200,169,81,0.4)';
+  ctx.textAlign = 'center';
+  ctx.fillText('GTA HEIST RPG  •  STATS DOSSIER', W / 2, H - 10);
+
+  drawScanlines(ctx, W, H);
+  applyVignette(ctx, W, H);
+
+  return canvasToBuffer(canvas);
 }
