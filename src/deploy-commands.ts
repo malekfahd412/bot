@@ -2,7 +2,6 @@ import { REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
 import { logger } from './utils/logger.js';
 
-// Import slash command builders directly — avoids the execute() handler
 import { data as profile } from './commands/profile.js';
 import { data as daily } from './commands/daily.js';
 import { data as leaderboard } from './commands/leaderboard.js';
@@ -19,7 +18,7 @@ const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
 
 if (!TOKEN || !CLIENT_ID) {
-  logger.error('DISCORD_TOKEN and DISCORD_CLIENT_ID must be set in .env');
+  logger.error('DISCORD_TOKEN and DISCORD_CLIENT_ID must be set');
   process.exit(1);
 }
 
@@ -37,10 +36,7 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
       await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commandData });
       logger.success(`Registered ${commandData.length} commands to guild ${GUILD_ID}`);
     } else {
-      await rest.put(
-        Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID!),
-        { body: commandData }
-      );
+      await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commandData });
       logger.success(`Registered ${commandData.length} global commands`);
     }
   } catch (err) {

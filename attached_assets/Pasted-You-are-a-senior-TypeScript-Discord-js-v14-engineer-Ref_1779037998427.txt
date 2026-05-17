@@ -1,0 +1,85 @@
+You are a senior TypeScript + Discord.js (v14+) engineer.
+
+Refactor this entire project to be production-grade and eliminate ALL current TypeScript + runtime schema mismatches.
+
+## 🎯 MAIN GOALS
+1. Standardize naming across the entire project:
+   - Use ONLY `display_name` in database + Player interface
+   - Use ONLY `displayName` for Discord.js User objects
+   - NEVER mix them
+
+2. Fix ALL TypeScript errors:
+   - missing exports
+   - duplicate identifiers
+   - incorrect imports
+   - wrong types
+   - undefined properties
+
+3. Fix database schema alignment:
+   - Ensure `players` table matches Player interface exactly
+   - Ensure all SQL queries match actual column names
+   - NO phantom columns, NO mismatches
+
+4. Fix broken modules:
+   - src/database/schema.ts must export ALL used types:
+     Player, Crew, HeistSubmission, Achievement, InventoryItem
+   - src/database/db.ts must correctly import them
+   - remove circular or broken imports
+
+5. Fix Discord.js usage:
+   - Replace all `.display_name` on Discord User with `.displayName`
+   - Replace all `.displayName` usage on Player with `.display_name`
+   - Add helper function if needed:
+     getDisplayName(user: User): string
+
+6. Fix canvas system:
+   - Ensure generateStatsCard returns Promise<Buffer> correctly
+   - Fix AttachmentBuilder buffer issues
+   - Ensure no function returns void where Buffer is required
+
+7. Clean architecture:
+   - Move all naming conversions into ONE utility file:
+     utils/normalize.ts
+
+   Example:
+   export function toPlayerName(user: User): string
+   export function toDiscordName(player: Player): string
+
+8. Remove all duplicated or broken definitions:
+   - no duplicate interface fields
+   - no duplicated schema exports
+   - no half-written functions
+   - no placeholder functions left in production code
+
+---
+
+## 🧠 STRICT RULES
+- Do NOT break runtime behavior
+- Do NOT remove features
+- Do NOT delete systems (heist, crew, stats, approval)
+- Only refactor + fix + unify
+- Keep project structure intact
+- Ensure `npm run build` passes with ZERO errors
+
+---
+
+## 🧪 DATABASE RULE
+- SQLite schema must match TypeScript interface 1:1
+- If mismatch exists, fix SQL or interface (choose ONE source of truth: database = truth)
+
+---
+
+## 🧱 FINAL OUTPUT
+After refactor:
+- project compiles with ZERO TypeScript errors
+- bot runs normally
+- all commands still work
+- stats/admin/profile/daily/heist all functional
+- canvas generation works and returns Buffer correctly
+
+Also output a short summary of:
+- what you changed
+- what was broken
+- what you standardized
+
+Start now.
