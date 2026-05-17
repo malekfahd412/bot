@@ -17,7 +17,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const target = interaction.options.getUser('target') ?? interaction.user;
   const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
-  const player = PlayerSystem.getOrCreate(target.id, target.username, avatarUrl);
+  const player = PlayerSystem.getOrCreate(target.id, target.display_name, avatarUrl);
   const recentHeists = HeistSystem.getPlayerHistory(target.id, 4);
 
   try {
@@ -27,7 +27,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await interaction.editReply({
       content: target.id === interaction.user.id
         ? '> 📊 Your full criminal dossier.'
-        : `> 📊 Criminal dossier for **${target.username}**.`,
+        : `> 📊 Criminal dossier for **${target.display_name}**.`,
       files: [attachment],
     });
   } catch (err) {

@@ -5,8 +5,8 @@ const db_js_1 = require("../database/db.js");
 const helpers_js_1 = require("../utils/helpers.js");
 const logger_js_1 = require("../utils/logger.js");
 class PlayerSystem {
-    static getOrCreate(discordId, username, avatarUrl) {
-        return db_js_1.PlayerDB.findOrCreate(discordId, username, avatarUrl);
+    static getOrCreate(discordId, display_name, avatarUrl) {
+        return db_js_1.PlayerDB.findOrCreate(discordId, display_name, avatarUrl);
     }
     static get(discordId) {
         return db_js_1.PlayerDB.findByDiscordId(discordId);
@@ -20,10 +20,10 @@ class PlayerSystem {
         const newRank = (0, helpers_js_1.getRank)(newLevel);
         const rankChanged = newRank.name !== oldRank.name;
         if (leveledUp) {
-            logger_js_1.logger.game(`${player.username} (${discordId}) leveled up to ${newLevel}`);
+            logger_js_1.logger.game(`${player.display_name} (${discordId}) leveled up to ${newLevel}`);
         }
         if (rankChanged) {
-            logger_js_1.logger.game(`${player.username} (${discordId}) ranked up to ${newRank.name}`);
+            logger_js_1.logger.game(`${player.display_name} (${discordId}) ranked up to ${newRank.name}`);
             db_js_1.PlayerDB.update(discordId, { rank: newRank.name });
             this.checkRankAchievement(discordId, newRank.name);
         }

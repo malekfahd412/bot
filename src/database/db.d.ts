@@ -21,21 +21,21 @@ export const PlayerDB = {
       .get(discordId) as Player | undefined;
   },
 
-  create(discordId: string, username: string, avatarUrl?: string): Player {
+  create(discordId: string, display_name: string, avatarUrl?: string): Player {
     const stmt = getDB().prepare(`
-      INSERT INTO players (discord_id, username, avatar_url, xp, coins, level)
+      INSERT INTO players (discord_id, display_name, avatar_url, xp, coins, level)
       VALUES (?, ?, ?, 0, 0, 1)
     `);
 
-    stmt.run(discordId, username, avatarUrl ?? null);
+    stmt.run(discordId, display_name, avatarUrl ?? null);
 
     return this.findByDiscordId(discordId)!;
   },
 
-  findOrCreate(discordId: string, username: string, avatarUrl?: string): Player {
+  findOrCreate(discordId: string, display_name: string, avatarUrl?: string): Player {
     const existing = this.findByDiscordId(discordId);
     if (existing) return existing;
-    return this.create(discordId, username, avatarUrl);
+    return this.create(discordId, display_name, avatarUrl);
   },
 
   update(discordId: string, data: Partial<Player>): void {

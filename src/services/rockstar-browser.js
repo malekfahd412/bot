@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.fetchRockstarProfile = fetchRockstarProfile;
 const playwright_1 = require("playwright");
-async function fetchRockstarProfile(username) {
-    const url = `https://socialclub.rockstargames.com/member/${encodeURIComponent(username)}`;
+async function fetchRockstarProfile(display_name) {
+    const url = `https://socialclub.rockstargames.com/member/${encodeURIComponent(display_name)}`;
     const browser = await playwright_1.chromium.launch({
         headless: true,
     });
@@ -25,7 +25,7 @@ async function fetchRockstarProfile(username) {
         const crewTag = (await page.locator(".crew-tag").textContent().catch(() => null)) ||
             undefined;
         const profile = {
-            username,
+            display_name,
             rid: title || undefined,
             avatar: avatar || undefined,
             crewName: crewName?.trim(),

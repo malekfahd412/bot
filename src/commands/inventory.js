@@ -13,12 +13,12 @@ exports.data = new discord_js_1.SlashCommandBuilder()
 async function execute(interaction) {
     await interaction.deferReply();
     const user = interaction.user;
-    const player = player_js_1.PlayerSystem.getOrCreate(user.id, user.username, user.displayAvatarURL({ extension: 'png', size: 256 }));
+    const player = player_js_1.PlayerSystem.getOrCreate(user.id, interaction.user.displayName, user.displayAvatarURL({ extension: 'png', size: 256 }));
     const achievements = db_js_1.AchievementDB.getPlayerAchievements(user.id);
     const rank = (0, helpers_js_1.getRank)(player.level);
     const embed = new discord_js_1.EmbedBuilder()
         .setColor(0xC8A951)
-        .setTitle(`🎒 ${user.username}'s Inventory`)
+        .setTitle(`🎒 ${interaction.user.displayName}'s Inventory`)
         .setThumbnail(user.displayAvatarURL())
         .addFields({ name: '🏅 Rank', value: `${rank.icon} **${rank.name}**`, inline: true }, { name: '📊 Level', value: `**${player.level}**`, inline: true }, { name: '💰 Coins', value: `**$${player.coins.toLocaleString()}**`, inline: true });
     if (achievements.length > 0) {

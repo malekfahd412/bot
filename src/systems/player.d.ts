@@ -6,7 +6,7 @@ export interface LevelUpResult {
     rankChanged: boolean;
 }
 export declare class PlayerSystem {
-    static getOrCreate(discordId: string, username: string, avatarUrl?: string): Player;
+    static getOrCreate(discordId: string, display_name: string, avatarUrl?: string): Player;
     static get(discordId: string): Player | undefined;
     static awardXP(discordId: string, amount: number): LevelUpResult;
     static awardCoins(discordId: string, amount: number): void;

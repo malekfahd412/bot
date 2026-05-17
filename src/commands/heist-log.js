@@ -90,7 +90,7 @@ async function handleHeistModal(interaction, reviewChannelId) {
     const proofUrl = interaction.fields.getTextInputValue('proof_url').trim();
     const notes = interaction.fields.getTextInputValue('notes') || '';
     const user = interaction.user;
-    player_js_1.PlayerSystem.getOrCreate(user.id, user.username, user.displayAvatarURL({ extension: 'png', size: 256 }));
+    player_js_1.PlayerSystem.getOrCreate(user.id, interaction.user.displayName, user.displayAvatarURL({ extension: 'png', size: 256 }));
     // 👇 اختيار التيم باستخدام UI
     const teammates = await askTeammates(interaction);
     const finalTeam = [user.id, ...teammates].slice(0, 4);
@@ -133,7 +133,7 @@ async function handleHeistModal(interaction, reviewChannelId) {
         await interaction.editReply({
             content: `✅ Heist submitted successfully!\nID: \`${submission.id}\``,
         });
-        logger_js_1.logger.game(`Heist submitted by ${user.username}`);
+        logger_js_1.logger.game(`Heist submitted by ${interaction.user.displayName}`);
     }
     catch (err) {
         logger_js_1.logger.error(String(err));

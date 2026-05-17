@@ -60,7 +60,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const reason = interaction.options.getString('reason') ?? 'Admin grant';
     const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
-    PlayerSystem.getOrCreate(target.id, target.username, avatarUrl);
+    PlayerSystem.getOrCreate(target.id, target.display_name, avatarUrl);
 
     try {
       const result = PlayerSystem.adminGiveXP(target.id, amount);
@@ -95,7 +95,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const reason = interaction.options.getString('reason') ?? 'Admin grant';
     const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
-    PlayerSystem.getOrCreate(target.id, target.username, avatarUrl);
+    PlayerSystem.getOrCreate(target.id, target.display_name, avatarUrl);
 
     try {
       PlayerSystem.giveCoins(target.id, amount);
@@ -207,7 +207,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const player = PlayerDB.findByDiscordId(target.id);
 
     if (!player) {
-      await interaction.editReply(`❌ **${target.username}** has no profile yet.`);
+      await interaction.editReply(`❌ **${target.display_name}** has no profile yet.`);
       return;
     }
 
@@ -216,7 +216,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     const embed = new EmbedBuilder()
       .setColor(0xC8A951)
-      .setTitle(`Admin Lookup: ${player.username}`)
+      .setTitle(`Admin Lookup: ${player.display_name}`)
       .setThumbnail(target.displayAvatarURL())
       .addFields(
         { name: 'Discord ID', value: `\`${player.discord_id}\``, inline: true },
@@ -243,14 +243,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const player = PlayerDB.findByDiscordId(target.id);
 
     if (!player) {
-      await interaction.editReply(`❌ **${target.username}** has no profile.`);
+      await interaction.editReply(`❌ **${target.display_name}** has no profile.`);
       return;
     }
 
     PlayerDB.update(target.id, { streak_current: 0 });
     logger.game(`Admin ${adminId} reset streak for ${target.id}`);
 
-    await interaction.editReply(`✅ Streak reset for **${target.username}** (was **${player.streak_current} days**).`);
+    await interaction.editReply(`✅ Streak reset for **${target.display_name}** (was **${player.streak_current} days**).`);
     return;
   }
 }

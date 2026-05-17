@@ -15,7 +15,7 @@ async function execute(interaction) {
     await interaction.deferReply();
     const target = interaction.options.getUser('target') ?? interaction.user;
     const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
-    const player = player_js_1.PlayerSystem.getOrCreate(target.id, target.username, avatarUrl);
+    const player = player_js_1.PlayerSystem.getOrCreate(target.id, target.display_name, avatarUrl);
     const recentHeists = heist_js_1.HeistSystem.getPlayerHistory(target.id, 4);
     try {
         const buffer = await (0, stats_card_js_1.generateStatsCard)(player, recentHeists);
@@ -23,7 +23,7 @@ async function execute(interaction) {
         await interaction.editReply({
             content: target.id === interaction.user.id
                 ? '> 📊 Your full criminal dossier.'
-                : `> 📊 Criminal dossier for **${target.username}**.`,
+                : `> 📊 Criminal dossier for **${target.display_name}**.`,
             files: [attachment],
         });
     }

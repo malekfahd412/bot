@@ -30,7 +30,7 @@ async function generateCrewCard(crew, members, owner) {
     ctx.font = '13px Arial';
     ctx.textAlign = 'left';
     ctx.fillStyle = constants_js_1.COLORS.textMuted;
-    ctx.fillText(`OWNER: ${owner.username.toUpperCase()}`, 120, 74);
+    ctx.fillText(`OWNER: ${owner.display_name.toUpperCase()}`, 120, 74);
     if (crew.description) {
         ctx.font = '12px Arial';
         ctx.fillStyle = constants_js_1.COLORS.textMuted;
@@ -100,13 +100,13 @@ async function generateCrewCard(crew, members, owner) {
             ctx.font = 'bold 16px Arial';
             ctx.fillStyle = constants_js_1.COLORS.primary;
             ctx.textAlign = 'center';
-            ctx.fillText(m.username.charAt(0).toUpperCase(), mx + 28, my + 34);
+            ctx.fillText(m.display_name.charAt(0).toUpperCase(), mx + 28, my + 34);
         }
         // Name
         ctx.textAlign = 'left';
         ctx.font = 'bold 14px Arial';
         ctx.fillStyle = isOwner ? constants_js_1.COLORS.gold : '#FFFFFF';
-        ctx.fillText(m.username + (isOwner ? '  👑' : ''), mx + 54, my + 24);
+        ctx.fillText(m.display_name + (isOwner ? '  👑' : ''), mx + 54, my + 24);
         ctx.font = '11px Arial';
         ctx.fillStyle = rank.color;
         ctx.fillText(`${rank.icon} ${rank.name}  •  LVL ${m.level}`, mx + 54, my + 41);

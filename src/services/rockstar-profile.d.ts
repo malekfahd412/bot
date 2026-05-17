@@ -1,8 +1,8 @@
 export type RockstarProfile = {
-    username: string;
+    display_name: string;
     avatar?: string;
     profileUrl: string;
     rawHtml?: string;
 };
-export declare function fetchRockstarProfile(username: string): Promise<RockstarProfile | null>;
+export declare function fetchRockstarProfile(display_name: string): Promise<RockstarProfile | null>;
 //# sourceMappingURL=rockstar-profile.d.ts.map

@@ -15,7 +15,7 @@ async function execute(interaction) {
     await interaction.deferReply();
     const user = interaction.user;
     const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
-    player_js_1.PlayerSystem.getOrCreate(user.id, user.username, avatarUrl);
+    player_js_1.PlayerSystem.getOrCreate(user.id, interaction.user.displayName, avatarUrl);
     try {
         const result = streaks_js_1.StreakSystem.claimDaily(user.id);
         const streakDisplay = result.newStreak >= 7 ? `${result.newStreak} 🔥🔥` :
@@ -28,7 +28,7 @@ async function execute(interaction) {
             .setTitle(result.streakBroken ? '💔 Streak Reset' : result.milestoneReached ? `🎉 STREAK MILESTONE — ${result.milestone} DAYS!` : '💰 Daily Payday')
             .setDescription(result.streakBroken
             ? `Your streak was broken. Starting fresh from **1 day**.`
-            : `You showed up. The crew respects that, **${user.username}**.`)
+            : `You showed up. The crew respects that, **${interaction.user.displayName}**.`)
             .addFields({ name: '⚡ XP Earned', value: `+${(0, helpers_js_1.formatNumber)(result.xp)} XP`, inline: true }, { name: '💵 Coins Earned', value: (0, helpers_js_1.formatCoins)(result.coins), inline: true }, { name: '🔥 Current Streak', value: streakDisplay, inline: true }, { name: '📈 Streak Multiplier', value: `${multiplier.toFixed(1)}x`, inline: true }, ...(nextMilestone ? [{ name: '🎯 Next Milestone', value: `${nextMilestone - result.newStreak} days away`, inline: true }] : []))
             .setFooter({ text: 'Come back tomorrow to keep your streak going.' })
             .setTimestamp();

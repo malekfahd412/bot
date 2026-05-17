@@ -23,7 +23,7 @@ async function generateStatsCard(player, recentHeists) {
     ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, 0, 4, H);
     // Header
-    (0, renderer_js_1.drawGlowText)(ctx, `📊  ${player.username.toUpperCase()}  —  CRIMINAL RECORD`, W / 2, 45, '#FFFFFF', constants_js_1.COLORS.primary, 20, 'bold', 'center');
+    (0, renderer_js_1.drawGlowText)(ctx, `📊  ${player.display_name.toUpperCase()}  —  CRIMINAL RECORD`, W / 2, 45, '#FFFFFF', constants_js_1.COLORS.primary, 20, 'bold', 'center');
     ctx.font = 'bold 13px Arial';
     ctx.fillStyle = rank.color;
     ctx.textAlign = 'center';

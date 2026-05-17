@@ -44,7 +44,7 @@ async function execute(interaction) {
         const amount = interaction.options.getInteger('amount', true);
         const reason = interaction.options.getString('reason') ?? 'Admin grant';
         const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
-        player_js_1.PlayerSystem.getOrCreate(target.id, target.username, avatarUrl);
+        player_js_1.PlayerSystem.getOrCreate(target.id, target.display_name, avatarUrl);
         try {
             const result = player_js_1.PlayerSystem.adminGiveXP(target.id, amount);
             const player = db_js_1.PlayerDB.findByDiscordId(target.id);
@@ -66,7 +66,7 @@ async function execute(interaction) {
         const amount = interaction.options.getInteger('amount', true);
         const reason = interaction.options.getString('reason') ?? 'Admin grant';
         const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
-        player_js_1.PlayerSystem.getOrCreate(target.id, target.username, avatarUrl);
+        player_js_1.PlayerSystem.getOrCreate(target.id, target.display_name, avatarUrl);
         try {
             player_js_1.PlayerSystem.giveCoins(target.id, amount);
             const player = db_js_1.PlayerDB.findByDiscordId(target.id);
@@ -144,14 +144,14 @@ async function execute(interaction) {
         const target = interaction.options.getUser('player', true);
         const player = db_js_1.PlayerDB.findByDiscordId(target.id);
         if (!player) {
-            await interaction.editReply(`❌ **${target.username}** has no profile yet.`);
+            await interaction.editReply(`❌ **${target.display_name}** has no profile yet.`);
             return;
         }
         const rank = (0, helpers_js_1.getRank)(player.level);
         const globalRank = player_js_1.PlayerSystem.getPlayerRank(target.id);
         const embed = new discord_js_1.EmbedBuilder()
             .setColor(0xC8A951)
-            .setTitle(`Admin Lookup: ${player.username}`)
+            .setTitle(`Admin Lookup: ${player.display_name}`)
             .setThumbnail(target.displayAvatarURL())
             .addFields({ name: 'Discord ID', value: `\`${player.discord_id}\``, inline: true }, { name: 'Global Rank', value: `#${globalRank}`, inline: true }, { name: 'Level', value: String(player.level), inline: true }, { name: 'XP', value: `${(0, helpers_js_1.formatNumber)(player.xp)} XP`, inline: true }, { name: 'Coins', value: (0, helpers_js_1.formatCoins)(player.coins), inline: true }, { name: 'Rank', value: `${rank.icon} ${rank.name}`, inline: true }, { name: 'Total Heists', value: String(player.total_heists), inline: true }, { name: 'Successful', value: String(player.successful_heists), inline: true }, { name: 'Streak', value: `${player.streak_current} days (best: ${player.streak_longest})`, inline: true }, { name: 'Crew', value: player.crew_id ?? 'None', inline: true }, { name: 'Joined', value: new Date(player.created_at).toLocaleDateString(), inline: true }, { name: 'Last Heist', value: player.last_heist ? new Date(player.last_heist).toLocaleDateString() : 'Never', inline: true })
             .setTimestamp();
@@ -162,12 +162,12 @@ async function execute(interaction) {
         const target = interaction.options.getUser('player', true);
         const player = db_js_1.PlayerDB.findByDiscordId(target.id);
         if (!player) {
-            await interaction.editReply(`❌ **${target.username}** has no profile.`);
+            await interaction.editReply(`❌ **${target.display_name}** has no profile.`);
             return;
         }
         db_js_1.PlayerDB.update(target.id, { streak_current: 0 });
         logger_js_1.logger.game(`Admin ${adminId} reset streak for ${target.id}`);
-        await interaction.editReply(`✅ Streak reset for **${target.username}** (was **${player.streak_current} days**).`);
+        await interaction.editReply(`✅ Streak reset for **${target.display_name}** (was **${player.streak_current} days**).`);
         return;
     }
 }

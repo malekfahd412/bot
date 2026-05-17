@@ -90,13 +90,13 @@ async function generateLeaderboardCard(players, type = 'xp') {
             ctx.font = 'bold 18px Arial';
             ctx.fillStyle = constants_js_1.COLORS.primary;
             ctx.textAlign = 'center';
-            ctx.fillText(p.username.charAt(0).toUpperCase(), avX + avSize / 2, avY + avSize / 2 + 7);
+            ctx.fillText(p.display_name.charAt(0).toUpperCase(), avX + avSize / 2, avY + avSize / 2 + 7);
         }
         // Username
         ctx.textAlign = 'left';
         ctx.font = 'bold 16px Arial';
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(p.username, 126, ry + 28);
+        ctx.fillText(p.display_name, 126, ry + 28);
         ctx.font = '12px Arial';
         ctx.fillStyle = rank.color;
         ctx.fillText(`${rank.icon} ${rank.name}  •  LVL ${p.level}`, 126, ry + 48);

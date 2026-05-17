@@ -15,7 +15,7 @@ async function execute(interaction) {
     await interaction.deferReply();
     const target = interaction.options.getUser('target') ?? interaction.user;
     const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
-    const player = player_js_1.PlayerSystem.getOrCreate(target.id, target.username, avatarUrl);
+    const player = player_js_1.PlayerSystem.getOrCreate(target.id, target.display_name, avatarUrl);
     const globalRank = player_js_1.PlayerSystem.getPlayerRank(target.id);
     try {
         const buffer = await (0, profile_card_js_1.generateProfileCard)(player, globalRank);
@@ -23,10 +23,10 @@ async function execute(interaction) {
         await interaction.editReply({
             content: target.id === interaction.user.id
                 ? '> 🎯 Your criminal record, boss.'
-                : `> 🎯 Criminal record for **${target.username}**.`,
+                : `> 🎯 Criminal record for **${target.display_name}**.`,
             files: [attachment],
         });
-        logger_js_1.logger.info(`Profile card generated for ${target.username}`);
+        logger_js_1.logger.info(`Profile card generated for ${target.display_name}`);
     }
     catch (err) {
         logger_js_1.logger.error('Profile card generation failed:', err);

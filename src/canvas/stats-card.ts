@@ -31,7 +31,7 @@ export async function generateStatsCard(player: Player, recentHeists: HeistSubmi
   ctx.fillRect(0, 0, 4, H);
 
   // Header
-  drawGlowText(ctx, `📊  ${player.username.toUpperCase()}  —  CRIMINAL RECORD`, W / 2, 45, '#FFFFFF', COLORS.primary, 20, 'bold', 'center');
+  drawGlowText(ctx, `📊  ${player.display_name.toUpperCase()}  —  CRIMINAL RECORD`, W / 2, 45, '#FFFFFF', COLORS.primary, 20, 'bold', 'center');
 
   ctx.font = 'bold 13px Arial';
   ctx.fillStyle = rank.color;

@@ -31,7 +31,7 @@ async function execute(interaction) {
     await interaction.deferReply();
     const sub = interaction.options.getSubcommand();
     const user = interaction.user;
-    player_js_1.PlayerSystem.getOrCreate(user.id, user.username, user.displayAvatarURL({ extension: 'png', size: 256 }));
+    player_js_1.PlayerSystem.getOrCreate(user.id, interaction.user.displayName, user.displayAvatarURL({ extension: 'png', size: 256 }));
     if (sub === 'create') {
         const name = interaction.options.getString('name', true).trim();
         const tag = interaction.options.getString('tag', true).trim().toUpperCase();
@@ -129,7 +129,7 @@ async function execute(interaction) {
         }
         try {
             crew_js_1.CrewSystem.join(player.crew_id, target.id);
-            await interaction.editReply(`✅ **${target.username}** has been added to **${crew.name}**. One more soldier in the family.`);
+            await interaction.editReply(`✅ **${target.displayName}** has been added to **${crew.name}**. One more soldier in the family.`);
         }
         catch (err) {
             await interaction.editReply(`❌ ${err instanceof Error ? err.message : 'Failed to invite player.'}`);

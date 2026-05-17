@@ -17,7 +17,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const target = interaction.options.getUser('target') ?? interaction.user;
   const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
-  const player = PlayerSystem.getOrCreate(target.id, target.username, avatarUrl);
+  const player = PlayerSystem.getOrCreate(target.id, target.displayName, avatarUrl);
   const globalRank = PlayerSystem.getPlayerRank(target.id);
 
   try {
@@ -27,11 +27,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await interaction.editReply({
       content: target.id === interaction.user.id
         ? '> 🎯 Your criminal record, boss.'
-        : `> 🎯 Criminal record for **${target.username}**.`,
+        : `> 🎯 Criminal record for **${target.display_name}**.`,
       files: [attachment],
     });
 
-    logger.info(`Profile card generated for ${target.username}`);
+    logger.info(`Profile card generated for ${target.display_name}`);
   } catch (err) {
     logger.error('Profile card generation failed:', err);
     await interaction.editReply('❌ Failed to generate profile card. Please try again.');

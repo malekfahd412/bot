@@ -30,7 +30,7 @@ function initSchema(database) {
     CREATE TABLE IF NOT EXISTS players (
       id TEXT PRIMARY KEY,
       discord_id TEXT UNIQUE NOT NULL,
-      username TEXT NOT NULL,
+      display_name TEXT NOT NULL,
       avatar_url TEXT,
       level INTEGER NOT NULL DEFAULT 1,
       xp INTEGER NOT NULL DEFAULT 0,
@@ -113,16 +113,16 @@ exports.PlayerDB = {
     findByDiscordId(discordId) {
         return getDB().prepare('SELECT * FROM players WHERE discord_id = ?').get(discordId);
     },
-    create(discordId, username, avatarUrl) {
+    create(discordId, display_name, avatarUrl) {
         const id = (0, uuid_1.v4)();
         getDB().prepare(`
-      INSERT INTO players (id, discord_id, username, avatar_url)
+      INSERT INTO players (id, discord_id, display_name, avatar_url)
       VALUES (?, ?, ?, ?)
-    `).run(id, discordId, username, avatarUrl ?? null);
+    `).run(id, discordId, display_name, avatarUrl ?? null);
         return this.findByDiscordId(discordId);
     },
-    findOrCreate(discordId, username, avatarUrl) {
-        return this.findByDiscordId(discordId) ?? this.create(discordId, username, avatarUrl);
+    findOrCreate(discordId, display_name, avatarUrl) {
+        return this.findByDiscordId(discordId) ?? this.create(discordId, display_name, avatarUrl);
     },
     update(discordId, data) {
         if (Object.keys(data).length === 0)

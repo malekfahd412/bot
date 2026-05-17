@@ -38,7 +38,7 @@ export async function generateCrewCard(crew: Crew, members: Player[], owner: Pla
   ctx.font = '13px Arial';
   ctx.textAlign = 'left';
   ctx.fillStyle = COLORS.textMuted;
-  ctx.fillText(`OWNER: ${owner.username.toUpperCase()}`, 120, 74);
+  ctx.fillText(`OWNER: ${owner.display_name.toUpperCase()}`, 120, 74);
 
   if (crew.description) {
     ctx.font = '12px Arial';
@@ -115,14 +115,14 @@ export async function generateCrewCard(crew: Crew, members: Player[], owner: Pla
       ctx.font = 'bold 16px Arial';
       ctx.fillStyle = COLORS.primary;
       ctx.textAlign = 'center';
-      ctx.fillText(m.username.charAt(0).toUpperCase(), mx + 28, my + 34);
+      ctx.fillText(m.display_name.charAt(0).toUpperCase(), mx + 28, my + 34);
     }
 
     // Name
     ctx.textAlign = 'left';
     ctx.font = 'bold 14px Arial';
     ctx.fillStyle = isOwner ? COLORS.gold : '#FFFFFF';
-    ctx.fillText(m.username + (isOwner ? '  👑' : ''), mx + 54, my + 24);
+    ctx.fillText(m.display_name + (isOwner ? '  👑' : ''), mx + 54, my + 24);
 
     ctx.font = '11px Arial';
     ctx.fillStyle = rank.color;

@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
 
 export interface RockstarProfile {
-  username: string;
+  display_name: string;
   rid?: string;
   avatar?: string;
   crewName?: string;
@@ -10,8 +10,8 @@ export interface RockstarProfile {
   profileUrl: string;
 }
 
-export async function fetchRockstarProfile(username: string): Promise<RockstarProfile | null> {
-  const url = `https://socialclub.rockstargames.com/member/${encodeURIComponent(username)}`;
+export async function fetchRockstarProfile(display_name: string): Promise<RockstarProfile | null> {
+  const url = `https://socialclub.rockstargames.com/member/${encodeURIComponent(display_name)}`;
 
   const browser = await chromium.launch({
     headless: true,
@@ -45,7 +45,7 @@ export async function fetchRockstarProfile(username: string): Promise<RockstarPr
       undefined;
 
     const profile: RockstarProfile = {
-      username,
+      display_name,
       rid: title || undefined,
       avatar: avatar || undefined,
       crewName: crewName?.trim(),

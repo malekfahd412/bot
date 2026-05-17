@@ -39,9 +39,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.fetchRockstarProfile = fetchRockstarProfile;
 const axios_1 = __importDefault(require("axios"));
 const cheerio = __importStar(require("cheerio"));
-async function fetchRockstarProfile(username) {
+async function fetchRockstarProfile(display_name) {
     try {
-        const url = `https://socialclub.rockstargames.com/member/${encodeURIComponent(username)}`;
+        const url = `https://socialclub.rockstargames.com/member/${encodeURIComponent(display_name)}`;
         const res = await axios_1.default.get(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0",
@@ -55,9 +55,9 @@ async function fetchRockstarProfile(username) {
             $('img').first().attr("src");
         // 🏷️ الاسم الحقيقي من الصفحة
         const ogTitle = $('meta[property="og:title"]').attr("content");
-        const cleanUsername = ogTitle?.split(" | ")[0] || username;
+        const cleanUsername = ogTitle?.split(" | ")[0] || display_name;
         return {
-            username: cleanUsername,
+            display_name: cleanUsername,
             avatar,
             profileUrl: url,
             rawHtml: html,

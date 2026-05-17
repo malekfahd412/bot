@@ -1,5 +1,5 @@
 export interface RockstarProfile {
-    username: string;
+    display_name: string;
     rid?: string;
     avatar?: string;
     crewName?: string;
@@ -7,5 +7,5 @@ export interface RockstarProfile {
     country?: string;
     profileUrl: string;
 }
-export declare function fetchRockstarProfile(username: string): Promise<RockstarProfile | null>;
+export declare function fetchRockstarProfile(display_name: string): Promise<RockstarProfile | null>;
 //# sourceMappingURL=rockstar-browser.d.ts.map
