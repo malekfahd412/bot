@@ -13,7 +13,6 @@ import {
   Guild,
   UserSelectMenuBuilder,
   ComponentType,
-  InteractionCollector,
 } from 'discord.js';
 
 import { PlayerSystem } from '../systems/player.js';
@@ -22,7 +21,7 @@ import { DIFFICULTY_CONFIG, type Difficulty } from '../utils/constants.js';
 import { formatNumber } from '../utils/helpers.js';
 import { logger } from '../utils/logger.js';
 
-/* ───────────────────────────────────────────── */
+/* ─────────────────────────── COMMAND ─────────────────────────── */
 
 export const data = new SlashCommandBuilder()
   .setName('heist-log')
@@ -37,8 +36,6 @@ export const data = new SlashCommandBuilder()
         { name: '🔴 Hard', value: 'hard' },
       )
   );
-
-/* ───────────────────────────────────────────── */
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const difficulty = interaction.options.getString('difficulty', true) as Difficulty;
@@ -57,16 +54,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
     ),
-
     new ActionRowBuilder<TextInputBuilder>().addComponents(
       new TextInputBuilder()
         .setCustomId('proof_url')
         .setLabel('Proof URL')
-      .setPlaceholder('https://imgur.com/... or https://streamable.com/...')
+        .setPlaceholder('https://imgur.com/... or https://streamable.com/...')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
     ),
-
     new ActionRowBuilder<TextInputBuilder>().addComponents(
       new TextInputBuilder()
         .setCustomId('notes')
@@ -80,23 +75,21 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   await interaction.showModal(modal);
 }
 
-/* ───────────────────────────────────────────── */
-/* USER SELECT MENU STEP (NEW UI) */
-/* ───────────────────────────────────────────── */
+/* ─────────────────────────── TEAMMATE SELECTOR ─────────────────────────── */
 
 async function askTeammates(interaction: ModalSubmitInteraction): Promise<string[]> {
   const hostId = interaction.user.id;
 
   const menu = new UserSelectMenuBuilder()
     .setCustomId('heist_team_select')
-    .setPlaceholder('Select up to 3 teammates')
+    .setPlaceholder('Select up to 3 teammates (or skip)')
     .setMinValues(0)
     .setMaxValues(3);
 
   const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(menu);
 
   await interaction.followUp({
-    content: '👥 اختر أعضاء الفريق (حد أقصى 3)',
+    content: '👥 Select your teammates (up to 3). This will expire in 60 seconds.',
     components: [row],
     flags: 64,
   });
@@ -104,59 +97,52 @@ async function askTeammates(interaction: ModalSubmitInteraction): Promise<string
   return new Promise((resolve) => {
     const collector = interaction.channel?.createMessageComponentCollector({
       componentType: ComponentType.UserSelect,
-      time: 60000,
+      time: 60_000,
+      filter: (i) => i.user.id === hostId && i.customId === 'heist_team_select',
     });
 
-    collector?.on('collect', async (i) => {
-      if (i.customId !== 'heist_team_select') return;
-
-      let users = i.values;
-
-      // remove duplicates + host
-      users = users.filter(u => u !== hostId);
+    collector?.once('collect', async (i) => {
+      const users = i.values.filter(u => u !== hostId);
 
       await i.update({
-        content: `✅ Selected teammates: ${users.map(u => `<@${u}>`).join(', ') || 'None'}`,
+        content: `✅ Teammates locked in: ${users.map(u => `<@${u}>`).join(', ') || 'None (solo run)'}`,
         components: [],
       });
 
-      collector.stop();
+      collector.stop('collected');
       resolve(users);
     });
 
-    collector?.on('end', (_, reason) => {
-      if (reason === 'time') resolve([]);
+    collector?.on('end', (_collected, reason) => {
+      if (reason !== 'collected') resolve([]);
     });
   });
 }
 
-/* ───────────────────────────────────────────── */
+/* ─────────────────────────── MODAL HANDLER ─────────────────────────── */
 
 export async function handleHeistModal(
   interaction: ModalSubmitInteraction,
   reviewChannelId: string | undefined
 ): Promise<void> {
-
   await interaction.deferReply({ flags: 64 });
 
   const [, difficulty] = interaction.customId.split(':') as [string, Difficulty];
 
   const heistName = interaction.fields.getTextInputValue('heist_name').trim();
   const proofUrl = interaction.fields.getTextInputValue('proof_url').trim();
-  const notes = interaction.fields.getTextInputValue('notes') || '';
+  const notes = interaction.fields.getTextInputValue('notes').trim();
 
   const user = interaction.user;
 
   PlayerSystem.getOrCreate(
     user.id,
-    interaction.user.displayName,
+    user.displayName,
     user.displayAvatarURL({ extension: 'png', size: 256 })
   );
 
-  // 👇 اختيار التيم باستخدام UI
+  // Collect teammates via select menu (non-blocking, 60s window)
   const teammates = await askTeammates(interaction);
-
-  const finalTeam = [user.id, ...teammates].slice(0, 4);
 
   const diffConfig = DIFFICULTY_CONFIG[difficulty];
   const rewards = HeistSystem.calculateRewards(difficulty);
@@ -166,7 +152,7 @@ export async function handleHeistModal(
       submitterId: user.id,
       heistName,
       difficulty,
-      teammates: finalTeam,
+      teammates,
       proofUrl,
       notes: notes || undefined,
       submissionChannelId: interaction.channelId ?? undefined,
@@ -176,18 +162,20 @@ export async function handleHeistModal(
       const channel = await fetchTextChannel(interaction.guild, reviewChannelId);
 
       if (channel) {
+        const allParticipants = [user.id, ...teammates];
+
         const embed = new EmbedBuilder()
           .setColor(0xC8A951)
           .setTitle(`HEIST — ${heistName}`)
           .setDescription(
             `**Host:** <@${user.id}>\n` +
-            `**Team:** ${finalTeam.map(u => `<@${u}>`).join(', ')}\n` +
+            `**Team:** ${allParticipants.map(u => `<@${u}>`).join(', ')}\n` +
             `**Difficulty:** ${diffConfig.label}`
           )
           .addFields(
             { name: 'Proof', value: `[View](${proofUrl})`, inline: true },
-            { name: 'XP', value: `~${formatNumber(rewards.xp)}`, inline: true },
-            { name: 'Coins', value: `~$${formatNumber(rewards.coins)}`, inline: true },
+            { name: 'Est. XP', value: `~${formatNumber(rewards.xp)}`, inline: true },
+            { name: 'Est. Coins', value: `~$${formatNumber(rewards.coins)}`, inline: true },
           )
           .setThumbnail(user.displayAvatarURL())
           .setFooter({ text: `ID: ${submission.id}` })
@@ -198,7 +186,6 @@ export async function handleHeistModal(
             .setCustomId(`heist_approve:${submission.id}`)
             .setLabel('APPROVE')
             .setStyle(ButtonStyle.Success),
-
           new ButtonBuilder()
             .setCustomId(`heist_reject:${submission.id}`)
             .setLabel('REJECT')
@@ -211,27 +198,25 @@ export async function handleHeistModal(
     }
 
     await interaction.editReply({
-      content: `✅ Heist submitted successfully!\nID: \`${submission.id}\``,
+      content: `✅ Heist submitted for review.\nID: \`${submission.id.slice(0, 8)}\``,
     });
 
-    logger.game(`Heist submitted by ${interaction.user.displayName}`);
+    logger.game(`Heist submitted by ${user.displayName} — ${heistName} (${difficulty})`);
 
   } catch (err) {
-    logger.error(String(err));
-    await interaction.editReply('❌ Failed to submit heist.');
+    logger.error('Heist modal submission failed:', err);
+    await interaction.editReply('❌ Failed to submit heist. Please try again.');
   }
 }
 
-/* ───────────────────────────────────────────── */
+/* ─────────────────────────── HELPERS ─────────────────────────── */
 
 async function fetchTextChannel(guild: Guild, id: string): Promise<TextChannel | null> {
   try {
     const cached = guild.channels.cache.get(id);
     if (cached?.isTextBased()) return cached as TextChannel;
-
     const fetched = await guild.channels.fetch(id);
     if (fetched?.isTextBased()) return fetched as TextChannel;
-
     return null;
   } catch {
     return null;

@@ -1,48 +1,53 @@
 import {
   StringSelectMenuInteraction,
-  EmbedBuilder,
+  AttachmentBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
 
-import { CrewDB } from '../database/db.js';
+import { CrewDB, PlayerDB } from '../database/db.js';
+import { generateCrewCard } from '../canvas/stats-card.js';
+import { logger } from '../utils/logger.js';
 
-export async function handleCrewSelect(interaction: StringSelectMenuInteraction) {
+export async function handleCrewSelect(interaction: StringSelectMenuInteraction): Promise<void> {
   if (interaction.customId !== 'crew_select') return;
+
+  await interaction.deferUpdate();
 
   const crewId = interaction.values[0];
   const crew = CrewDB.findById(crewId);
 
   if (!crew) {
-    return interaction.reply({
-      content: '❌ Crew not found',
-      ephemeral: true,
-    });
+    await interaction.followUp({ content: '❌ Crew not found.', ephemeral: true });
+    return;
   }
 
   const members = CrewDB.getMembers(crewId);
+  const owner = PlayerDB.findByDiscordId(crew.owner_id);
 
-  const embed = new EmbedBuilder()
-    .setTitle(`🏴 ${crew.name}`)
-    .setDescription(crew.description || 'No description')
-    .addFields(
-      { name: 'Tag', value: crew.tag, inline: true },
-      { name: 'Members', value: String(members.length), inline: true },
-      { name: 'Earnings', value: String(crew.total_earnings), inline: true },
-    )
-    .setColor('Gold');
+  if (!owner) {
+    await interaction.followUp({ content: '❌ Crew data unavailable.', ephemeral: true });
+    return;
+  }
 
-  const joinBtn = new ButtonBuilder()
-    .setCustomId(`crew_join:${crew.id}`) // FIX: unified format
-    .setLabel('Join Crew')
-    .setStyle(ButtonStyle.Success);
+  try {
+    const buffer = await generateCrewCard(crew, members, owner);
 
-  const row = new ActionRowBuilder<ButtonBuilder>()
-    .addComponents(joinBtn);
+    const joinBtn = new ButtonBuilder()
+      .setCustomId(`crew_join:${crew.id}`)
+      .setLabel('Join Crew')
+      .setStyle(ButtonStyle.Success);
 
-  await interaction.update({
-    embeds: [embed],
-    components: [row],
-  });
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(joinBtn);
+
+    await interaction.editReply({
+      files: [new AttachmentBuilder(buffer, { name: 'crew.png' })],
+      components: [row],
+      embeds: [],
+    });
+  } catch (err) {
+    logger.error('Crew card generation failed in select handler:', err);
+    await interaction.followUp({ content: '❌ Failed to load crew card.', ephemeral: true });
+  }
 }

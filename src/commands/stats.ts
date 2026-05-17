@@ -13,46 +13,28 @@ export const data = new SlashCommandBuilder()
   .setName('stats')
   .setDescription('View your detailed criminal statistics')
   .addUserOption(opt =>
-    opt
-      .setName('target')
-      .setDescription("View another player's stats")
-      .setRequired(false)
+    opt.setName('target').setDescription("View another player's stats").setRequired(false)
   );
 
-export async function execute(interaction: ChatInputCommandInteraction) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();
 
   const target = interaction.options.getUser('target') ?? interaction.user;
-
+  const displayName = target.displayName;
   const avatarUrl = target.displayAvatarURL({ extension: 'png', size: 256 });
 
-  // FIX: الصحيح
-  const username = target.displayName;
-
-  const player = PlayerSystem.getOrCreate(
-    target.id,
-    username,
-    avatarUrl
-  );
-
+  const player = PlayerSystem.getOrCreate(target.id, displayName, avatarUrl);
   const recentHeists = HeistSystem.getPlayerHistory(target.id, 4);
 
   try {
     const buffer = await generateStatsCard(player, recentHeists);
 
-    const attachment = new AttachmentBuilder(buffer, {
-      name: 'stats.png',
-    });
-
     await interaction.editReply({
-      content:
-        target.id === interaction.user.id
-          ? '> 📊 Your full criminal dossier.'
-          : `> 📊 Criminal dossier for **${username}**.`,
-
-      files: [attachment],
+      content: target.id === interaction.user.id
+        ? '> 📊 Your full criminal dossier.'
+        : `> 📊 Criminal dossier for **${displayName}**.`,
+      files: [new AttachmentBuilder(buffer, { name: 'stats.png' })],
     });
-
   } catch (err) {
     logger.error('Stats card generation failed:', err);
     await interaction.editReply('❌ Failed to generate stats card.');
