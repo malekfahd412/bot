@@ -4,7 +4,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { logger } from '../utils/logger.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { Player, HeistSubmission, Crew, Territory, Achievement, AdminLog, Season, CrewTransaction, CrewWar, CrewUpgrade, ShopItem, InventoryItem, ActiveBoost } from './schema.js';
+import type { Player, HeistSubmission, Crew, Territory, Achievement, AdminLog, Season, CrewTransaction, CrewWar, CrewUpgrade, ShopItem, InventoryItem, ActiveBoost, WarEvent, EventTeam, EventParticipant, EventLog } from './schema.js';
 import { STARTER_ITEMS } from '../shop-ui/items-config.js';
 
 const DATA_DIR = join(process.cwd(), 'data');
@@ -199,6 +199,51 @@ function initSchema(database: Database.Database): void {
       effect_type TEXT NOT NULL,
       effect_value REAL NOT NULL,
       expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS war_events (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      reward_xp INTEGER NOT NULL DEFAULT 500,
+      reward_coins INTEGER NOT NULL DEFAULT 5000,
+      created_by TEXT NOT NULL,
+      announcement_message_id TEXT,
+      announcement_channel_id TEXT,
+      winner_crew_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ended_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS event_teams (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL,
+      crew_id TEXT NOT NULL,
+      crew_name TEXT NOT NULL,
+      crew_tag TEXT NOT NULL,
+      score INTEGER NOT NULL DEFAULT 0,
+      heists_success INTEGER NOT NULL DEFAULT 0,
+      heists_failed INTEGER NOT NULL DEFAULT 0,
+      bonus_objectives INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(event_id, crew_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS event_participants (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      crew_id TEXT NOT NULL,
+      joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(event_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS event_logs (
+      id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL,
+      crew_id TEXT,
+      message TEXT NOT NULL,
+      points_delta INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
@@ -809,6 +854,106 @@ export const InventoryDB = {
 
   count(playerId: string): number {
     return (getDB().prepare('SELECT COUNT(*) as n FROM inventory_items WHERE player_id = ?').get(playerId) as { n: number }).n;
+  },
+};
+
+/* ─────────────────────────── ACTIVE BOOST DB ─────────────────────────── */
+
+/* ─────────────────────────── WAR EVENT DB ─────────────────────────── */
+
+export const WarEventDB = {
+  create(title: string, rewardXp: number, rewardCoins: number, createdBy: string): WarEvent {
+    const id = uuidv4();
+    getDB().prepare(
+      'INSERT INTO war_events (id, title, reward_xp, reward_coins, created_by) VALUES (?, ?, ?, ?, ?)'
+    ).run(id, title, rewardXp, rewardCoins, createdBy);
+    return this.findById(id)!;
+  },
+
+  findById(id: string): WarEvent | undefined {
+    return getDB().prepare('SELECT * FROM war_events WHERE id = ?').get(id) as WarEvent | undefined;
+  },
+
+  getActive(): WarEvent | undefined {
+    return getDB().prepare("SELECT * FROM war_events WHERE status = 'active' ORDER BY created_at DESC LIMIT 1").get() as WarEvent | undefined;
+  },
+
+  setAnnouncementMessage(id: string, messageId: string, channelId: string): void {
+    getDB().prepare('UPDATE war_events SET announcement_message_id = ?, announcement_channel_id = ? WHERE id = ?').run(messageId, channelId, id);
+  },
+
+  end(id: string, winnerCrewId: string | null): void {
+    getDB().prepare("UPDATE war_events SET status = 'ended', winner_crew_id = ?, ended_at = datetime('now') WHERE id = ?").run(winnerCrewId, id);
+  },
+
+  getHistory(limit = 10): WarEvent[] {
+    return getDB().prepare("SELECT * FROM war_events WHERE status = 'ended' ORDER BY ended_at DESC LIMIT ?").all(limit) as WarEvent[];
+  },
+};
+
+/* ─────────────────────────── EVENT TEAM DB ─────────────────────────── */
+
+export const EventTeamDB = {
+  addTeam(eventId: string, crewId: string, crewName: string, crewTag: string): EventTeam {
+    const id = uuidv4();
+    getDB().prepare(
+      'INSERT OR IGNORE INTO event_teams (id, event_id, crew_id, crew_name, crew_tag) VALUES (?, ?, ?, ?, ?)'
+    ).run(id, eventId, crewId, crewName, crewTag);
+    return this.findTeam(eventId, crewId)!;
+  },
+
+  findTeam(eventId: string, crewId: string): EventTeam | undefined {
+    return getDB().prepare('SELECT * FROM event_teams WHERE event_id = ? AND crew_id = ?').get(eventId, crewId) as EventTeam | undefined;
+  },
+
+  getTeams(eventId: string): EventTeam[] {
+    return getDB().prepare('SELECT * FROM event_teams WHERE event_id = ? ORDER BY score DESC').all(eventId) as EventTeam[];
+  },
+
+  addScore(eventId: string, crewId: string, delta: number, field: 'heists_success' | 'heists_failed' | 'bonus_objectives'): void {
+    getDB().prepare(
+      `UPDATE event_teams SET score = score + ?, ${field} = ${field} + 1 WHERE event_id = ? AND crew_id = ?`
+    ).run(delta, eventId, crewId);
+  },
+};
+
+/* ─────────────────────────── EVENT PARTICIPANT DB ─────────────────────────── */
+
+export const EventParticipantDB = {
+  join(eventId: string, userId: string, crewId: string): void {
+    getDB().prepare(
+      'INSERT OR IGNORE INTO event_participants (id, event_id, user_id, crew_id) VALUES (?, ?, ?, ?)'
+    ).run(uuidv4(), eventId, userId, crewId);
+  },
+
+  leave(eventId: string, userId: string): void {
+    getDB().prepare('DELETE FROM event_participants WHERE event_id = ? AND user_id = ?').run(eventId, userId);
+  },
+
+  isParticipant(eventId: string, userId: string): boolean {
+    return !!getDB().prepare('SELECT id FROM event_participants WHERE event_id = ? AND user_id = ?').get(eventId, userId);
+  },
+
+  getCrewParticipants(eventId: string, crewId: string): EventParticipant[] {
+    return getDB().prepare('SELECT * FROM event_participants WHERE event_id = ? AND crew_id = ?').all(eventId, crewId) as EventParticipant[];
+  },
+
+  getAll(eventId: string): EventParticipant[] {
+    return getDB().prepare('SELECT * FROM event_participants WHERE event_id = ? ORDER BY joined_at ASC').all(eventId) as EventParticipant[];
+  },
+};
+
+/* ─────────────────────────── EVENT LOG DB ─────────────────────────── */
+
+export const EventLogDB = {
+  log(eventId: string, message: string, crewId: string | null, pointsDelta: number): void {
+    getDB().prepare(
+      'INSERT INTO event_logs (id, event_id, crew_id, message, points_delta) VALUES (?, ?, ?, ?, ?)'
+    ).run(uuidv4(), eventId, crewId, message, pointsDelta);
+  },
+
+  getRecent(eventId: string, limit = 20): EventLog[] {
+    return getDB().prepare('SELECT * FROM event_logs WHERE event_id = ? ORDER BY created_at DESC LIMIT ?').all(eventId, limit) as EventLog[];
   },
 };
 

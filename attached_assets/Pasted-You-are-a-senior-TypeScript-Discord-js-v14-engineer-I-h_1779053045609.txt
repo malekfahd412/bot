@@ -1,0 +1,151 @@
+You are a senior TypeScript + Discord.js (v14) engineer.
+
+I have a GTA-style Discord RPG bot. I want to ADD a new system called:
+
+🏴 CREW EVENT WAR SYSTEM (TEAM-BASED EVENTS)
+
+DO NOT create a new game. Only implement a system inside the existing bot.
+
+━━━━━━━━━━━━━━━━━━━
+🎯 CORE GOAL
+━━━━━━━━━━━━━━━━━━━
+
+Create a full event lifecycle system where:
+
+- Players join EVENTS as CREWS (teams)
+- Events are announced by admin
+- Crews compete in heists / missions (manually reported or logged)
+- System tracks points per crew
+- Live leaderboard updates during event
+- Final winning CREW is announced
+- Rewards distributed to all members of winning crew
+
+━━━━━━━━━━━━━━━━━━━
+🧠 IMPORTANT RULES
+━━━━━━━━━━━━━━━━━━━
+
+- Winning is TEAM-based only (Crew wins, not individual players)
+- Must support multiple crews per event
+- Must store everything in SQLite (or existing DB)
+- Must be production-ready TypeScript
+- Must use discord.js v14 Buttons + SelectMenus + Embeds
+- No fake game simulation — only tracking real admin/player inputs
+
+━━━━━━━━━━━━━━━━━━━
+📦 DATABASE REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━
+
+Create or extend tables:
+
+EVENTS:
+- id
+- title
+- status (active/ended)
+- created_at
+- ended_at
+
+EVENT_TEAMS:
+- id
+- event_id
+- crew_id
+- score
+- heists_success
+- heists_failed
+
+EVENT_PARTICIPANTS:
+- id
+- event_id
+- user_id
+- crew_id
+
+EVENT_LOGS:
+- id
+- event_id
+- message
+- created_at
+
+━━━━━━━━━━━━━━━━━━━
+⚔️ EVENT FLOW
+━━━━━━━━━━━━━━━━━━━
+
+1. ADMIN CREATES EVENT
+- /event create
+- sends embed:
+  "🚨 Crew War Event Started"
+- buttons:
+  [Join Event]
+  [Create Crew]
+  [View Leaderboard]
+
+2. PLAYERS JOIN
+- must join with a crew
+- if no crew → must create/join one first
+
+3. EVENT TRACKING
+- admin or system logs:
+  - crew heist success (+points)
+  - crew failure (-points)
+  - special bonuses
+
+4. LIVE LEADERBOARD
+- auto update embed:
+  - crew name
+  - score
+  - rank position
+
+5. EVENT END
+- /event end
+- system calculates winner crew
+- sends final embed:
+  - winning crew
+  - full ranking
+  - stats per crew
+
+6. REWARDS DISTRIBUTION
+- give XP + coins to ALL members of winning crew
+- bonus to top performing crew member optional
+
+━━━━━━━━━━━━━━━━━━━
+📊 SCORING SYSTEM
+━━━━━━━━━━━━━━━━━━━
+
+- Heist success: +100 points
+- Perfect heist (no failure): +150 points
+- Failure: -50 points
+- Bonus objective: +75 points
+
+━━━━━━━━━━━━━━━━━━━
+📡 DISCORD UI REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━
+
+Use:
+- Buttons (Join / Leave / View Leaderboard)
+- Select Menu for crew selection
+- Embeds styled like GTA criminal theme
+- Live updating message (editMessage not spam)
+
+━━━━━━━━━━━━━━━━━━━
+🔥 EXTRA FEATURES (IMPORTANT)
+━━━━━━━━━━━━━━━━━━━
+
+- Prevent duplicate joins
+- Prevent crew abuse (cooldowns per action)
+- Event history stored
+- Leaderboard sorting optimized
+- Clean TypeScript typing (no any)
+
+━━━━━━━━━━━━━━━━━━━
+⚠️ OUTPUT REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━
+
+Return:
+- Full TypeScript system code
+- EventManager class
+- Database layer
+- Discord command handlers
+- Button interaction handlers
+
+Make it clean, modular, and production level.
+
+DO NOT break existing bot systems.
+Integrate smoothly into current architecture.

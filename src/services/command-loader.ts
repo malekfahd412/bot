@@ -8,6 +8,7 @@ import * as crew from '../commands/crew-dashboard.js';
 import * as inventory from '../commands/inventory.js';
 import * as shop from '../commands/shop.js';
 import * as admin from '../commands/admin.js';
+import * as event from '../commands/event.js';
 import { logger } from '../utils/logger.js';
 
 type CommandModule = {
@@ -28,6 +29,7 @@ export function loadCommands(): Collection<string, CommandModule> {
     inventory as unknown as CommandModule,
     shop as unknown as CommandModule,
     admin as unknown as CommandModule,
+    event as unknown as CommandModule,
 ];
 
   for (const mod of modules) {

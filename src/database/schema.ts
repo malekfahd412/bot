@@ -165,3 +165,46 @@ export interface CrewUpgrade {
   upgrade_key: string;
   purchased_at: string;
 }
+
+export interface WarEvent {
+  id: string;
+  title: string;
+  status: 'active' | 'ended';
+  reward_xp: number;
+  reward_coins: number;
+  created_by: string;
+  announcement_message_id: string | null;
+  announcement_channel_id: string | null;
+  winner_crew_id: string | null;
+  created_at: string;
+  ended_at: string | null;
+}
+
+export interface EventTeam {
+  id: string;
+  event_id: string;
+  crew_id: string;
+  crew_name: string;
+  crew_tag: string;
+  score: number;
+  heists_success: number;
+  heists_failed: number;
+  bonus_objectives: number;
+}
+
+export interface EventParticipant {
+  id: string;
+  event_id: string;
+  user_id: string;
+  crew_id: string;
+  joined_at: string;
+}
+
+export interface EventLog {
+  id: string;
+  event_id: string;
+  crew_id: string | null;
+  message: string;
+  points_delta: number;
+  created_at: string;
+}

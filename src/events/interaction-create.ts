@@ -15,6 +15,7 @@ import { generateMissionCard } from '../canvas/mission-card.js';
 import { handleCrewJoin } from '../interactions/crewJoin.js';
 import { routeCrewButton, routeCrewSelect, routeCrewModal } from '../crew-interactions/router.js';
 import { routeShopButton, routeShopSelect, routeShopModal } from '../shop-interactions/router.js';
+import { routeWarEventButton } from '../event-interactions/router.js';
 import type { Difficulty } from '../utils/constants.js';
 
 export const name = Events.InteractionCreate;
@@ -79,6 +80,16 @@ export async function execute(
   const button = interaction as ButtonInteraction;
   const customId = button.customId;
   const [action] = customId.split(':');
+
+  /* ─── WAR EVENT BUTTONS ─── */
+  if (customId.startsWith('war_event:')) {
+    try {
+      await routeWarEventButton(button);
+    } catch (err) {
+      logger.error('War event button error:', err);
+    }
+    return;
+  }
 
   /* ─── SHOP BUTTONS ─── */
   if (customId.startsWith('shop:') || customId.startsWith('shopadm:')) {
