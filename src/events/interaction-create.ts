@@ -8,6 +8,7 @@ import {
 import { logger } from '../utils/logger.js';
 import { Health } from '../utils/health.js';
 import { InteractionGuard } from '../utils/interaction-guard.js';
+import { RateLimiter } from '../utils/rate-limiter.js';
 import { ApprovalSystem } from '../systems/approval.js';
 import { HeistSystem } from '../systems/heist.js';
 import { getEventEngine } from '../systems/events.js';
@@ -110,6 +111,16 @@ export async function execute(
   const button   = interaction as ButtonInteraction;
   const customId = button.customId;
   const [action] = customId.split(':');
+
+  // Rate-limit button presses: 8 clicks per 4 seconds per user (anti-spam)
+  if (!RateLimiter.check(button.user.id, 'button', 8, 4_000)) {
+    const msLeft = RateLimiter.remaining(button.user.id, 'button', 4_000);
+    await button.reply({
+      content: `⏰ Slow down. Try again in **${Math.ceil(msLeft / 1000)}s**.`,
+      ephemeral: true,
+    }).catch(() => null);
+    return;
+  }
 
   /* ─── LANGUAGE SELECTION ─── */
   if (customId.startsWith('lang_set:')) {

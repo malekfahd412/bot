@@ -2,6 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder } from '
 import { PlayerSystem } from '../systems/player.js';
 import { PlayerDB } from '../database/db.js';
 import { StreakSystem } from '../systems/streaks.js';
+import { ThemeEngine } from '../systems/theme.js';
 import { t } from '../utils/i18n.js';
 import { formatCoins, formatNumber } from '../utils/helpers.js';
 import { logger } from '../utils/logger.js';
@@ -32,6 +33,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const nextMilestone = StreakSystem.getNextMilestone(result.newStreak);
     const multiplier    = StreakSystem.getStreakMultiplier(result.newStreak);
 
+    const theme = ThemeEngine.getActive();
+    const flavor = result.streakBroken ? '' : `\n*${theme.randomAtmosphere()}*`;
+
     const title = result.streakBroken
       ? t(lang, 'commands.daily.broken_title')
       : result.milestoneReached
@@ -40,11 +44,15 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     const desc = result.streakBroken
       ? t(lang, 'commands.daily.broken_desc')
-      : t(lang, 'commands.daily.normal_desc', { name: user.displayName });
+      : `${t(lang, 'commands.daily.normal_desc', { name: user.displayName })}${flavor}`;
+
+    const rewardLine = ThemeEngine.rewardLine(result.xp, result.coins, theme);
+
+    const embedColor = result.streakBroken ? theme.dangerColor : theme.primaryColor;
 
     const embed = new EmbedBuilder()
-      .setColor(result.streakBroken ? 0xff4757 : 0xC8A951)
-      .setTitle(title)
+      .setColor(embedColor)
+      .setTitle(`${theme.rewardEmoji} ${title}`)
       .setDescription(desc)
       .addFields(
         { name: t(lang, 'commands.daily.xp_field'),         value: `+${formatNumber(result.xp)} XP`,    inline: true },
@@ -54,8 +62,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         ...(nextMilestone
           ? [{ name: t(lang, 'commands.daily.milestone_field'), value: t(lang, 'commands.daily.milestone_value', { days: String(nextMilestone - result.newStreak) }), inline: true }]
           : []),
+        ...(rewardLine ? [{ name: '━━━━━━━━━━━━━━━━━━━━━', value: rewardLine, inline: false }] : []),
       )
-      .setFooter({ text: t(lang, 'commands.daily.footer') })
+      .setFooter({ text: `${t(lang, 'commands.daily.footer')} ${theme.footerSuffix}`.trim() })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });

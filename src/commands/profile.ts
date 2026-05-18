@@ -2,6 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, AttachmentBuilder } f
 import { PlayerSystem } from '../systems/player.js';
 import { PlayerDB } from '../database/db.js';
 import { generateProfileCard } from '../canvas/profile-card.js';
+import { ThemeEngine } from '../systems/theme.js';
 import { t } from '../utils/i18n.js';
 import { logger } from '../utils/logger.js';
 import { maybeShowLanguagePicker } from '../interactions/languageSelect.js';
@@ -27,14 +28,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const lang        = PlayerDB.getLanguage(interaction.user.id);
   const globalRank  = PlayerSystem.getPlayerRank(target.id);
+  const theme       = ThemeEngine.getActive();
 
   try {
     const buffer     = await generateProfileCard(player, globalRank);
     const attachment = new AttachmentBuilder(buffer, { name: 'profile.png' });
 
-    const content = target.id === interaction.user.id
+    const baseContent = target.id === interaction.user.id
       ? t(lang, 'commands.profile.your_card')
       : t(lang, 'commands.profile.other_card', { name: target.displayName });
+
+    const content = `${baseContent}\n*${theme.randomAtmosphere()}*`;
 
     await interaction.editReply({ content, files: [attachment] });
     logger.info(`Profile card generated for ${target.displayName}`);

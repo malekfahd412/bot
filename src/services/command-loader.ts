@@ -9,6 +9,7 @@ import * as inventory from '../commands/inventory.js';
 import * as shop from '../commands/shop.js';
 import * as admin from '../commands/admin.js';
 import * as event from '../commands/event.js';
+import * as language from '../commands/language.js';
 import { logger } from '../utils/logger.js';
 
 type CommandModule = {
@@ -30,7 +31,8 @@ export function loadCommands(): Collection<string, CommandModule> {
     shop as unknown as CommandModule,
     admin as unknown as CommandModule,
     event as unknown as CommandModule,
-];
+    language as unknown as CommandModule,
+  ];
 
   for (const mod of modules) {
     commands.set(mod.data.name, mod);

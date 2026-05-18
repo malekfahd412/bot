@@ -22,6 +22,7 @@ import { SeasonSystem } from '../admin/season.js';
 import { Health } from '../utils/health.js';
 import { getMemorySnapshot } from '../utils/process-guard.js';
 import { getEventEngine } from '../systems/events.js';
+import { ThemeEngine, THEMES, type ThemeId } from '../systems/theme.js';
 
 /* ─────────────────────────── PENDING CONFIRMS ─────────────────────────── */
 
@@ -119,6 +120,37 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand(sub =>
     sub.setName('shop').setDescription('Open the shop admin panel — manage items, prices, availability')
+  )
+  .addSubcommand(sub =>
+    sub.setName('theme')
+      .setDescription('Control the active world theme (immersion engine)')
+      .addStringOption(o =>
+        o.setName('action')
+          .setDescription('Set a theme or clear the override to revert to auto-detect')
+          .setRequired(true)
+          .addChoices(
+            { name: '🎨 Set theme',       value: 'set'    },
+            { name: '🔄 Clear override', value: 'clear'  },
+            { name: '📋 Show current',   value: 'status' },
+          )
+      )
+      .addStringOption(o =>
+        o.setName('name')
+          .setDescription('Theme to activate (required when action = set)')
+          .setRequired(false)
+          .addChoices(
+            { name: '💀 Default Criminal',   value: 'DEFAULT_CRIMINAL'   },
+            { name: '🌙 Night Ops',          value: 'NIGHT_OPS'          },
+            { name: '🕶️ Black Market',       value: 'BLACK_MARKET'       },
+            { name: '🚨 Police Lockdown',    value: 'POLICE_LOCKDOWN'    },
+            { name: '🔥 Heat Wave',          value: 'HEAT_WAVE'          },
+            { name: '🌧️ Rainy Operations',  value: 'RAINY_OPERATIONS'   },
+            { name: '🩸 Blood Money',        value: 'BLOOD_MONEY'        },
+            { name: '🎄 Christmas Heist',    value: 'CHRISTMAS_HEIST'    },
+            { name: '🌙 Ramadan Nights',     value: 'RAMADAN_NIGHTS'     },
+            { name: '⚡ Double XP Weekend',  value: 'DOUBLE_XP_WEEKEND'  },
+          )
+      )
   )
   .addSubcommand(sub =>
     sub.setName('pending')
@@ -557,6 +589,74 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
           .setTimestamp()],
       });
       return;
+    }
+
+    if (sub === 'theme') {
+      const themeAction = interaction.options.getString('action', true) as 'set' | 'clear' | 'status';
+
+      if (themeAction === 'clear') {
+        ThemeEngine.setOverride(null);
+        AdminLogSystem.log({ adminId, actionType: 'broadcast', target: 'system', details: { note: 'Theme override cleared' } });
+        const autoTheme = ThemeEngine.getActive();
+        await interaction.editReply({
+          embeds: [new EmbedBuilder()
+            .setColor(autoTheme.primaryColor)
+            .setTitle('🔄 Theme Override Cleared')
+            .setDescription(`Auto-detect is now active.\nCurrent theme: **${autoTheme.emoji} ${autoTheme.name}**\n*${autoTheme.randomAtmosphere()}*`)
+            .setFooter({ text: 'GTA Heist RPG • Theme Engine' })
+            .setTimestamp()],
+        });
+        return;
+      }
+
+      if (themeAction === 'status') {
+        const active = ThemeEngine.getActive();
+        const override = ThemeEngine.getOverride();
+        const lines = ThemeEngine.allIds().map(id => {
+          const t = THEMES[id];
+          const indicator = id === active.id ? '▶️' : '   ';
+          return `${indicator} ${t.emoji} **${t.name}**${id === override ? ' *(manual)*' : ''}`;
+        });
+        await interaction.editReply({
+          embeds: [new EmbedBuilder()
+            .setColor(active.primaryColor)
+            .setTitle(`${active.emoji} World Theme — Current & Available`)
+            .setDescription(lines.join('\n'))
+            .addFields({
+              name: 'Detection Mode',
+              value: override ? `🔒 Manual override: **${override}**` : '🤖 Auto-detect (date/time based)',
+              inline: false,
+            })
+            .setFooter({ text: `${active.footerSuffix || 'GTA Heist RPG • Theme Engine'}` })
+            .setTimestamp()],
+        });
+        return;
+      }
+
+      if (themeAction === 'set') {
+        const themeName = interaction.options.getString('name') as ThemeId | null;
+        if (!themeName) {
+          await interaction.editReply('❌ You must also provide a `name` when using `set`.');
+          return;
+        }
+        ThemeEngine.setOverride(themeName);
+        const theme = ThemeEngine.getActive();
+        AdminLogSystem.log({ adminId, actionType: 'broadcast', target: 'system', details: { note: `Theme set to ${themeName}` } });
+        await interaction.editReply({
+          embeds: [new EmbedBuilder()
+            .setColor(theme.primaryColor)
+            .setTitle(`${theme.emoji} World Theme Updated`)
+            .setDescription(`Active theme: **${theme.name}**\n\n*${theme.randomAtmosphere()}*`)
+            .addFields(
+              { name: 'XP Multiplier',   value: `${theme.xpMultiplier}x`,   inline: true },
+              { name: 'Coin Multiplier', value: `${theme.coinMultiplier}x`,  inline: true },
+              { name: 'Mode',            value: '🔒 Manual Override',        inline: true },
+            )
+            .setFooter({ text: `${theme.footerSuffix || 'GTA Heist RPG • Theme Engine'}` })
+            .setTimestamp()],
+        });
+        return;
+      }
     }
   }
 

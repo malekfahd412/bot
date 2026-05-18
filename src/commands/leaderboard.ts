@@ -2,6 +2,7 @@ import { ChatInputCommandInteraction, SlashCommandBuilder, AttachmentBuilder } f
 import { PlayerSystem } from '../systems/player.js';
 import { PlayerDB } from '../database/db.js';
 import { generateLeaderboardCard } from '../canvas/leaderboard-card.js';
+import { ThemeEngine } from '../systems/theme.js';
 import { t } from '../utils/i18n.js';
 import { logger } from '../utils/logger.js';
 
@@ -30,13 +31,17 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
+  const theme = ThemeEngine.getActive();
+
   try {
     const buffer     = await generateLeaderboardCard(players, type);
     const attachment = new AttachmentBuilder(buffer, { name: 'leaderboard.png' });
 
-    const content = type === 'xp'
+    const baseContent = type === 'xp'
       ? t(lang, 'commands.leaderboard.title_xp',    { count: players.length })
       : t(lang, 'commands.leaderboard.title_coins',  { count: players.length });
+
+    const content = `${theme.emoji} ${baseContent}\n*${theme.randomAtmosphere()}*`;
 
     await interaction.editReply({ content, files: [attachment] });
   } catch (err) {

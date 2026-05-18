@@ -1,0 +1,310 @@
+YOU ARE A PRINCIPAL GAME SYSTEMS ENGINEER.
+
+Your task is to implement a HIGH-END IMMERSION SYSTEM for the GTA RPG Discord platform while also fixing all currently broken systems, commands, deployments, and localization issues.
+
+==================================================
+🔥 PRIMARY OBJECTIVE
+==================================================
+
+Transform the project from:
+- static Discord bot/platform
+into:
+- a LIVE IMMERSIVE GTA RPG EXPERIENCE
+
+WITHOUT breaking stability.
+
+==================================================
+🔥 PART 1 — IMMERSION SYSTEM
+==================================================
+
+Build a COMPLETE IMMERSION ENGINE.
+
+The platform should feel:
+- alive
+- dynamic
+- seasonal
+- atmospheric
+- cinematic
+- reactive
+
+==================================================
+🌍 DYNAMIC WORLD THEMES
+==================================================
+
+REMOVE dependency on manually placed static backgrounds inside:
+- assets/backgrounds/
+- hardcoded background image paths
+
+DO NOT rely on fixed local PNG backgrounds anymore.
+
+Instead:
+Create a DYNAMIC THEME ENGINE.
+
+==================================================
+🔥 THEME ENGINE REQUIREMENTS
+==================================================
+
+The system must dynamically control:
+- embed visual themes
+- card backgrounds
+- accent colors
+- atmosphere
+- event styling
+- seasonal styling
+- UI mood
+
+Themes should automatically rotate based on:
+- active season
+- active event
+- world state
+- holidays
+- special operations
+- time of day (optional)
+- admin overrides
+
+==================================================
+🎭 REQUIRED IMMERSION THEMES
+==================================================
+
+Create immersive GTA/cyberpunk themes such as:
+
+- DEFAULT_CRIMINAL
+- NIGHT_OPS
+- BLACK_MARKET
+- POLICE_LOCKDOWN
+- HEAT_WAVE
+- RAINY_OPERATIONS
+- BLOOD_MONEY
+- CHRISTMAS_HEIST
+- RAMADAN_NIGHTS
+- DOUBLE_XP_WEEKEND
+
+Each theme controls:
+- colors
+- gradients
+- visual atmosphere
+- wording style
+- emoji packs
+- embed decorations
+
+==================================================
+🔥 EMBED ATMOSPHERE ENGINE
+==================================================
+
+Embeds must become:
+- cinematic
+- immersive
+- atmospheric
+
+DO NOT use boring default Discord embeds.
+
+System should dynamically adjust:
+- footer styles
+- separators
+- decorative lines
+- alert formatting
+- reward formatting
+- danger formatting
+
+==================================================
+🧠 IMMERSION TEXT ENGINE
+==================================================
+
+Responses should feel alive.
+
+Example:
+Instead of:
+"XP gained"
+
+Use:
+"⚡ Reputation increased after tonight's operation."
+
+Arabic mode should also feel immersive:
+NOT literal translation.
+
+==================================================
+🌧️ LIVE WORLD EFFECTS
+==================================================
+
+Add optional atmosphere modifiers:
+- police alert mode
+- high heat periods
+- bonus operation nights
+- black market surge
+- territory instability
+
+These should influence:
+- rewards
+- visuals
+- event wording
+
+==================================================
+🔥 PART 2 — FIX LANGUAGE SYSTEM
+==================================================
+
+The newly added language system is currently BROKEN.
+
+FIX ALL ISSUES.
+
+Current problems may include:
+- commands not responding
+- localization keys failing
+- untranslated text
+- commands not registered
+- deployment sync issues
+- interaction failures
+- missing command deploys
+- runtime translation errors
+- fallback failures
+
+==================================================
+🔥 LANGUAGE SYSTEM REQUIREMENTS
+==================================================
+
+Ensure:
+- Arabic works fully
+- English works fully
+- language selection panel works
+- language persists correctly
+- all commands use localization safely
+- no crashes if translation missing
+
+Implement:
+- fallback to English
+- missing key warnings
+- safe translation caching
+
+==================================================
+🔥 PART 3 — FIX COMMAND SYSTEM
+==================================================
+
+Some commands are:
+- broken
+- undeployed
+- not syncing with Discord
+- failing silently
+- missing from slash command registry
+
+FIX EVERYTHING.
+
+==================================================
+🔥 COMMAND STABILIZATION
+==================================================
+
+Implement:
+- automatic slash command validation
+- deployment verification
+- duplicate command detection
+- startup command sync checks
+- command registration logs
+- interaction timeout protection
+
+==================================================
+🔥 INTERACTION FAILSAFE
+==================================================
+
+Prevent:
+- "Unknown interaction"
+- expired interaction crashes
+- duplicate button custom_id errors
+- invalid component updates
+- interaction race conditions
+
+System must safely handle:
+- buttons
+- modals
+- select menus
+- slash commands
+
+==================================================
+🔥 BUTTON CUSTOM_ID FIX
+==================================================
+
+There are known issues with:
+COMPONENT_CUSTOM_ID_DUPLICATED
+
+Implement a SAFE CUSTOM ID GENERATOR.
+
+Requirements:
+- unique IDs
+- scoped component IDs
+- page-safe IDs
+- reusable utilities
+
+NO duplicated component IDs allowed anywhere.
+
+==================================================
+🔥 PART 4 — AUTO ERROR REPAIR
+==================================================
+
+Implement a GLOBAL SAFE ERROR LAYER.
+
+The project should:
+- detect broken commands
+- detect failed route handlers
+- detect deployment issues
+- detect missing configs
+- detect invalid imports
+
+And:
+- repair safely when possible
+- fallback gracefully
+- log detailed diagnostics
+
+==================================================
+🔥 PART 5 — DEPLOYMENT FIXES
+==================================================
+
+Ensure:
+- all slash commands deploy correctly
+- all commands appear in Discord
+- startup deployment works
+- hot reload safe
+- Replit deployment compatible
+- bot-hosting.net compatible
+
+Add:
+- deployment verification logs
+- startup diagnostics
+- command sync report
+
+==================================================
+🔥 PART 6 — CLEANUP
+==================================================
+
+Remove:
+- dead background assets
+- hardcoded visual paths
+- duplicate visual systems
+- duplicated embed styles
+- duplicated translation logic
+
+Unify all visual rendering under:
+IMMERSION ENGINE.
+
+==================================================
+🔥 FINAL RESULT REQUIRED
+==================================================
+
+At the end:
+
+✅ fully immersive GTA atmosphere
+✅ dynamic visual themes
+✅ cinematic embeds
+✅ no static manual backgrounds
+✅ stable localization system
+✅ Arabic fully working
+✅ English fully working
+✅ commands fully deployed
+✅ all broken commands repaired
+✅ no duplicate custom_id errors
+✅ no interaction crashes
+✅ no deployment desync
+✅ production-stable architecture
+✅ Replit compatible
+✅ bot-hosting.net compatible
+
+IMPORTANT:
+DO NOT BREAK EXISTING FEATURES.
+FIX IN PLACE.
+KEEP THE PROJECT STABLE.
