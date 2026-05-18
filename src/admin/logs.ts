@@ -12,7 +12,8 @@ export type AdminActionType =
   | 'give_coins'
   | 'reset_streak'
   | 'heist_approve'
-  | 'heist_reject';
+  | 'heist_reject'
+  | 'broadcast';
 
 export interface LogAction {
   adminId: string;

@@ -64,6 +64,34 @@ export const data = new SlashCommandBuilder()
     sub.setName('status').setDescription('Live bot health snapshot — uptime, memory, DB, errors')
   )
   .addSubcommand(sub =>
+    sub.setName('broadcast')
+      .setDescription('Send a styled announcement embed to any channel')
+      .addStringOption(o =>
+        o.setName('title').setDescription('Embed title').setRequired(true).setMaxLength(256)
+      )
+      .addStringOption(o =>
+        o.setName('message').setDescription('Embed body text').setRequired(true).setMaxLength(2000)
+      )
+      .addChannelOption(o =>
+        o.setName('channel').setDescription('Target channel (defaults to current channel)').setRequired(false)
+      )
+      .addStringOption(o =>
+        o.setName('type')
+          .setDescription('Announcement type (controls colour & icon)')
+          .setRequired(false)
+          .addChoices(
+            { name: '📢 General',     value: 'general' },
+            { name: '💣 Heist Alert', value: 'heist' },
+            { name: '⚙️ Maintenance', value: 'maintenance' },
+            { name: '🏆 Season',      value: 'season' },
+            { name: '⚠️ Warning',     value: 'warning' },
+          )
+      )
+      .addStringOption(o =>
+        o.setName('footer').setDescription('Optional footer text').setRequired(false).setMaxLength(128)
+      )
+  )
+  .addSubcommand(sub =>
     sub.setName('panel').setDescription('Open the admin control panel')
   )
   .addSubcommand(sub =>
@@ -211,6 +239,65 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
+      return;
+    }
+
+    if (sub === 'broadcast') {
+      const title      = interaction.options.getString('title', true).trim();
+      const message    = interaction.options.getString('message', true).trim();
+      const type       = interaction.options.getString('type') ?? 'general';
+      const footerText = interaction.options.getString('footer')?.trim() ?? null;
+      const targetChannel = interaction.options.getChannel('channel') ?? interaction.channel;
+
+      if (!targetChannel || !('send' in targetChannel)) {
+        await interaction.editReply('❌ Cannot send to that channel. Make sure it is a text channel.');
+        return;
+      }
+
+      type BroadcastType = 'general' | 'heist' | 'maintenance' | 'season' | 'warning';
+
+      const BROADCAST_STYLES: Record<BroadcastType, { color: number; icon: string; label: string }> = {
+        general:     { color: 0xC8A951, icon: '📢', label: 'Announcement'  },
+        heist:       { color: 0xE94560, icon: '💣', label: 'Heist Alert'   },
+        maintenance: { color: 0x8B8FA8, icon: '⚙️', label: 'Maintenance'   },
+        season:      { color: 0xFFD700, icon: '🏆', label: 'Season Update' },
+        warning:     { color: 0xFF6B00, icon: '⚠️', label: 'Warning'       },
+      };
+
+      const style = BROADCAST_STYLES[type as BroadcastType] ?? BROADCAST_STYLES.general;
+
+      const broadcastEmbed = new EmbedBuilder()
+        .setColor(style.color)
+        .setTitle(`${style.icon}  ${title}`)
+        .setDescription(message)
+        .setFooter({ text: footerText ?? `GTA Heist RPG • ${style.label}` })
+        .setTimestamp();
+
+      try {
+        const sent = await (targetChannel as import('discord.js').TextChannel).send({ embeds: [broadcastEmbed] });
+
+        AdminLogSystem.log({
+          adminId,
+          actionType: 'broadcast',
+          target: targetChannel.id,
+          details: { title, type, messageLength: message.length, messageUrl: sent.url },
+        });
+
+        await interaction.editReply({
+          embeds: [new EmbedBuilder()
+            .setColor(0x00D26A)
+            .setTitle('✅ Broadcast Sent')
+            .addFields(
+              { name: 'Channel',  value: `<#${targetChannel.id}>`, inline: true },
+              { name: 'Type',     value: `${style.icon} ${style.label}`, inline: true },
+              { name: 'Link',     value: `[Jump to message](${sent.url})`, inline: true },
+            )
+            .setTimestamp()],
+        });
+      } catch (err) {
+        logger.error('[Admin] Broadcast send failed:', err);
+        await interaction.editReply('❌ Failed to send the broadcast. Check that I have permission to post in that channel.');
+      }
       return;
     }
 
