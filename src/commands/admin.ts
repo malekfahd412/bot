@@ -11,13 +11,16 @@ import {
 
 import { PlayerSystem } from '../systems/player.js';
 import { HeistSystem } from '../systems/heist.js';
-import { PlayerDB, HeistDB, CrewDB } from '../database/db.js';
+import { PlayerDB, HeistDB, CrewDB, checkDBHealth } from '../database/db.js';
 import { DIFFICULTY_CONFIG } from '../utils/constants.js';
 import { formatCoins, formatNumber, getRank } from '../utils/helpers.js';
 import { logger } from '../utils/logger.js';
 import { AdminLogSystem } from '../admin/logs.js';
 import { ResetSystem } from '../admin/reset.js';
 import { SeasonSystem } from '../admin/season.js';
+import { Health } from '../utils/health.js';
+import { getMemorySnapshot } from '../utils/process-guard.js';
+import { getEventEngine } from '../systems/events.js';
 
 /* ─────────────────────────── PENDING CONFIRMS ─────────────────────────── */
 
@@ -57,6 +60,9 @@ export const data = new SlashCommandBuilder()
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 
   // ── Flat subcommands ──
+  .addSubcommand(sub =>
+    sub.setName('status').setDescription('Live bot health snapshot — uptime, memory, DB, errors')
+  )
   .addSubcommand(sub =>
     sub.setName('panel').setDescription('Open the admin control panel')
   )
@@ -161,6 +167,52 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   /* ════════════════ FLAT SUBCOMMANDS ════════════════ */
 
   if (!group) {
+
+    if (sub === 'status') {
+      const snap   = Health.getSnapshot();
+      const mem    = getMemorySnapshot();
+      const db     = checkDBHealth();
+      const engine = getEventEngine();
+
+      const totalPlayers  = PlayerDB.countAll();
+      const totalCrews    = CrewDB.countAll();
+      const pendingHeists = HeistDB.countPending();
+
+      const statusColor = db.ok ? 0x00D26A : 0xFF4757;
+      const dbLine      = db.ok ? '🟢 Connected' : `🔴 ERROR — ${db.error ?? 'unknown'}`;
+      const engineLine  = engine ? '🟢 Running' : '🔴 Offline';
+      const envLine     = snap.environment === 'production' ? '🚀 Production' : `🛠️ ${snap.environment}`;
+
+      const embed = new EmbedBuilder()
+        .setColor(statusColor)
+        .setTitle('📊  BOT STATUS — Live Health Snapshot')
+        .addFields(
+          { name: '⏱️ Uptime',           value: snap.uptimeHuman,                    inline: true },
+          { name: '🌍 Environment',       value: envLine,                             inline: true },
+          { name: '🆔 PID',              value: String(process.pid),                 inline: true },
+          { name: '🗄️ Database',         value: dbLine,                              inline: true },
+          { name: '⚙️ Event Engine',     value: engineLine,                          inline: true },
+          { name: '🔢 Node.js',          value: process.version,                     inline: true },
+          { name: '🧠 Heap Memory',      value: `${mem.heapMB} MB`,                  inline: true },
+          { name: '📦 RSS Memory',        value: `${mem.rssMB} MB`,                   inline: true },
+          { name: '🔌 External Memory',  value: `${mem.externalMB} MB`,              inline: true },
+          { name: '🎮 Interactions',      value: String(snap.interactionsProcessed),  inline: true },
+          { name: '❌ Errors Logged',    value: String(snap.errorsTotal),            inline: true },
+          { name: '🗃️ DB Queries',       value: String(snap.dbQueriesTotal),         inline: true },
+          { name: '👥 Players',           value: String(totalPlayers),               inline: true },
+          { name: '🏴 Crews',            value: String(totalCrews),                  inline: true },
+          { name: '📋 Pending Heists',   value: String(pendingHeists),               inline: true },
+          { name: '🕐 Started At',        value: `<t:${Math.floor(new Date(snap.startedAt).getTime() / 1000)}:f>`, inline: false },
+          ...(snap.idleSecondsSinceLastInteraction != null
+            ? [{ name: '💤 Last Activity', value: `${snap.idleSecondsSinceLastInteraction}s ago`, inline: true }]
+            : []),
+        )
+        .setFooter({ text: 'GTA Heist RPG • System Health' })
+        .setTimestamp();
+
+      await interaction.editReply({ embeds: [embed] });
+      return;
+    }
 
     if (sub === 'shop') {
       const { ShopItemDB } = await import('../database/db.js');
