@@ -23,6 +23,94 @@
     "stock":    "📦 المخزون",
     "rarity":   "✨ الندرة"
   },
+  "embeds": {
+    "main": {
+      "title":            "🛒  السوق السوداء — لوس سانتوس",
+      "quote":            "\"كل شيء له ثمن في هذه المدينة. السؤال — هل تستطيع دفعه؟\"",
+      "featured_header":  "⭐ عروض اليوم — تتجدد منتصف الليل",
+      "no_featured":      "*لا توجد عروض اليوم.*",
+      "balance_field":    "💰 رصيدك",
+      "categories_field": "📦 الأقسام",
+      "footer":           "GTA Heist RPG • السوق السوداء  |  استخدم الأزرار أدناه للتصفح"
+    },
+    "category": {
+      "no_items":     "*لا توجد عناصر في هذا القسم.*",
+      "balance_field":"💰 الرصيد",
+      "items_field":  "📦 العناصر",
+      "page_field":   "📄 الصفحة",
+      "footer":       "اختر عنصراً من القائمة لعرض التفاصيل والشراء"
+    },
+    "item_detail": {
+      "rarity_field":    "✨ الندرة",
+      "price_field":     "🏷️ السعر",
+      "stock_field":     "📦 المخزون",
+      "duration_field":  "⏱️ المدة",
+      "balance_field":   "💰 الرصيد",
+      "stock_unlimited": "∞ غير محدود",
+      "stock_out":       "❌ نفد من المخزون",
+      "stock_remaining": "{{count}} متبقية",
+      "can_afford":      "✅ يمكنك شراء هذا العنصر.",
+      "cannot_afford":   "❌ تحتاج {{amount}} إضافية.",
+      "balance_ok":      "{{balance}} ✅",
+      "balance_no":      "{{balance}} ❌ غير كافٍ"
+    },
+    "inventory": {
+      "title":             "🎒  مخزنك — {{name}}",
+      "subtitle":          "ترسانتك الشخصية من الأدوات والمواد.",
+      "inventory_header":  "📦 المخزون",
+      "boosts_header":     "⚡ التعزيزات النشطة",
+      "empty":             "*مخزنك فارغ.*",
+      "no_boosts":         "*لا توجد تعزيزات نشطة.*",
+      "balance_field":     "💰 الرصيد",
+      "page_field":        "📄 الصفحة",
+      "footer":            "اختر عنصراً لاستخدامه • التعزيزات تُفعَّل فورياً"
+    },
+    "featured": {
+      "title":         "⭐  عروض اليوم المميزة",
+      "subtitle":      "صفقات مختارة — متاحة 24 ساعة فقط. تتجدد منتصف الليل.",
+      "no_items":      "*لا توجد عروض اليوم.*",
+      "balance_field": "💰 رصيدك",
+      "resets_field":  "🕐 التجديد",
+      "footer":        "GTA Heist RPG • عروض السوق السوداء اليومية",
+      "discount_note": "اليوم فقط"
+    },
+    "purchase_success": {
+      "title":           "✅  اكتملت عملية الشراء",
+      "body":            "تمت إضافة **{{name}}** إلى مخزنك.",
+      "rarity_field":    "✨ الندرة",
+      "paid_field":      "💸 المدفوع",
+      "remaining_field": "💰 المتبقي",
+      "footer":          "استخدم /shop ← مخزني لاستخدام عنصرك الجديد"
+    },
+    "crate_opened": {
+      "title":        "📦  فتح الصندوق!",
+      "body":         "فتحت **{{crate}}** ووجدت...",
+      "rarity_field": "✨ الندرة",
+      "footer":       "تمت إضافة الجائزة إلى مخزنك"
+    },
+    "boost_activated": {
+      "title":         "⚡  تم تفعيل التعزيز",
+      "body":          "**{{icon}} {{name}}** نشط الآن.",
+      "expires_field": "⏱️ ينتهي",
+      "footer":        "تعزيزك نشط الآن — اذهب ونفّذ بعض العمليات!"
+    },
+    "item_used": {
+      "title": "✅  تم استخدام العنصر",
+      "body":  "تم تطبيق **{{icon}} {{name}}**."
+    }
+  },
+  "buttons": {
+    "daily_deals":     "⭐ عروض اليوم",
+    "my_inventory":    "🎒 مخزني",
+    "shop_home":       "🏠 الرئيسية",
+    "back":            "رجوع ←",
+    "back_to_shop":    "العودة للمتجر ←",
+    "prev":            "السابق ◀",
+    "next":            "◀ التالي",
+    "out_of_stock":    "❌ نفد المخزون",
+    "use_placeholder": "⚡ اختر عنصراً للاستخدام...",
+    "select_item":     "📋 اختر عنصراً لعرض التفاصيل..."
+  },
   "purchase": {
     "confirm_title": "🛒  تأكيد الشراء",
     "confirm_desc":  "أنت على وشك شراء **{{item}}** بـ **{{price}}**.\nرصيدك: **{{balance}}**",

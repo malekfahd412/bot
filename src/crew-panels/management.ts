@@ -16,11 +16,12 @@ export async function showManagementPanel(interaction: ButtonInteraction): Promi
     return;
   }
 
+  const lang = player.language ?? 'en';
   const isOwner = player.crew_role === 'owner';
 
   await interaction.update({
-    embeds: [buildManagementEmbed(crew, isOwner)],
-    components: buildManagementRows(isOwner),
+    embeds: [buildManagementEmbed(crew, isOwner, lang)],
+    components: buildManagementRows(isOwner, lang),
   });
 }
 
@@ -39,6 +40,8 @@ export async function showDisbandConfirm(interaction: ButtonInteraction): Promis
     return;
   }
 
+  const lang = player.language ?? 'en';
+
   const embed = new EmbedBuilder()
     .setColor(0xE94560)
     .setTitle('⚠️ DISBAND CREW — FINAL WARNING')
@@ -53,7 +56,7 @@ export async function showDisbandConfirm(interaction: ButtonInteraction): Promis
 
   await interaction.update({
     embeds: [embed],
-    components: buildConfirmCancelRows('crew:mgmt_disband_confirm', '💥 Disband Forever'),
+    components: buildConfirmCancelRows('crew:mgmt_disband_confirm', '💥 Disband Forever', lang),
   });
 }
 
@@ -76,6 +79,7 @@ export async function showLeaveConfirm(interaction: ButtonInteraction): Promise<
   }
 
   const crew = CrewDB.findById(player.crew_id);
+  const lang = player.language ?? 'en';
 
   const embed = new EmbedBuilder()
     .setColor(0xFFA502)
@@ -85,6 +89,6 @@ export async function showLeaveConfirm(interaction: ButtonInteraction): Promise<
 
   await interaction.update({
     embeds: [embed],
-    components: buildConfirmCancelRows('crew:leave_confirm', '🚪 Leave Crew'),
+    components: buildConfirmCancelRows('crew:leave_confirm', '🚪 Leave Crew', lang),
   });
 }

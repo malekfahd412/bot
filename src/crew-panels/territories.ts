@@ -16,10 +16,11 @@ export async function showTerritoriesPanel(interaction: ButtonInteraction): Prom
     return;
   }
 
+  const lang = player.language ?? 'en';
   const allTerritories = TerritoryDB.getAll();
 
   await interaction.update({
-    embeds: [buildTerritoriesEmbed(crew, allTerritories)],
-    components: buildTerritoriesRows(allTerritories, crew.id),
+    embeds: [buildTerritoriesEmbed(crew, allTerritories, lang)],
+    components: buildTerritoriesRows(allTerritories, crew.id, lang),
   });
 }

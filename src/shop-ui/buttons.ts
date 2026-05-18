@@ -6,6 +6,7 @@ import { ShopItem, InventoryItem } from '../database/schema.js';
 import { SHOP_CATEGORIES, RARITY_CONFIG, DAILY_DISCOUNT } from './items-config.js';
 import { formatCoins } from '../utils/helpers.js';
 import { createCustomId, validateComponentRows } from '../shop-utils/customId.js';
+import { t } from '../utils/i18n.js';
 
 type AnyRow = ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>;
 
@@ -17,27 +18,28 @@ export function createBackButton(label = '← Back', customId = 'shop:main'): Bu
   return new ButtonBuilder().setCustomId(customId).setLabel(label).setStyle(ButtonStyle.Secondary);
 }
 
-export function createMainButton(): ButtonBuilder {
-  return new ButtonBuilder().setCustomId('shop:main').setLabel('🏠 Main').setStyle(ButtonStyle.Secondary);
+export function createMainButton(lang = 'en'): ButtonBuilder {
+  return new ButtonBuilder().setCustomId('shop:main').setLabel(t(lang, 'shop.buttons.shop_home')).setStyle(ButtonStyle.Secondary);
 }
 
 export function createPaginationButtons(
   prefix: string,
   page: number,
   totalPages: number,
+  lang = 'en',
 ): [ButtonBuilder, ButtonBuilder] {
   const prevPage = Math.max(0, page - 1);
   const nextPage = Math.min(totalPages - 1, page + 1);
 
   const prevBtn = new ButtonBuilder()
     .setCustomId(createCustomId(prefix, prevPage, 'prev'))
-    .setLabel('◀ Prev')
+    .setLabel(t(lang, 'shop.buttons.prev'))
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(page === 0);
 
   const nextBtn = new ButtonBuilder()
     .setCustomId(createCustomId(prefix, nextPage, 'next'))
-    .setLabel('Next ▶')
+    .setLabel(t(lang, 'shop.buttons.next'))
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(page >= totalPages - 1);
 
@@ -47,19 +49,20 @@ export function createPaginationButtons(
 export function createInventoryPaginationButtons(
   page: number,
   totalPages: number,
+  lang = 'en',
 ): [ButtonBuilder, ButtonBuilder] {
   const prevPage = Math.max(0, page - 1);
   const nextPage = Math.min(Math.max(0, totalPages - 1), page + 1);
 
   const prevBtn = new ButtonBuilder()
     .setCustomId(createCustomId('shop:inv', prevPage, 'prev'))
-    .setLabel('◀ Prev')
+    .setLabel(t(lang, 'shop.buttons.prev'))
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(page === 0);
 
   const nextBtn = new ButtonBuilder()
     .setCustomId(createCustomId('shop:inv', nextPage, 'next'))
-    .setLabel('Next ▶')
+    .setLabel(t(lang, 'shop.buttons.next'))
     .setStyle(ButtonStyle.Secondary)
     .setDisabled(page >= totalPages - 1);
 
@@ -70,10 +73,10 @@ export function createInventoryPaginationButtons(
    MAIN SHOP
 ───────────────────────────────────────────────────────────────────────── */
 
-export function buildMainRows(): AnyRow[] {
+export function buildMainRows(lang = 'en'): AnyRow[] {
   const cats = Object.values(SHOP_CATEGORIES);
   const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId('shop:feat').setLabel('⭐ Daily Deals').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('shop:feat').setLabel(t(lang, 'shop.buttons.daily_deals')).setStyle(ButtonStyle.Success),
     ...cats.slice(0, 4).map(c =>
       new ButtonBuilder().setCustomId(`shop:cat:${c.key}:0`).setLabel(`${c.icon} ${c.name}`).setStyle(ButtonStyle.Secondary)
     ),
@@ -82,7 +85,7 @@ export function buildMainRows(): AnyRow[] {
     ...cats.slice(4).map(c =>
       new ButtonBuilder().setCustomId(`shop:cat:${c.key}:0`).setLabel(`${c.icon} ${c.name}`).setStyle(ButtonStyle.Secondary)
     ),
-    new ButtonBuilder().setCustomId('shop:inv:0').setLabel('🎒 My Inventory').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('shop:inv:0').setLabel(t(lang, 'shop.buttons.my_inventory')).setStyle(ButtonStyle.Primary),
   );
   return validateComponentRows([row1, row2], 'buildMainRows');
 }
@@ -96,6 +99,7 @@ export function buildCategoryRows(
   category: string,
   page: number,
   totalPages: number,
+  lang = 'en',
 ): AnyRow[] {
   const rows: AnyRow[] = [];
 
@@ -112,15 +116,15 @@ export function buildCategoryRows(
       new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId(`shop_sel:item:${category}:${page}`)
-          .setPlaceholder('📋 Select an item to view details...')
+          .setPlaceholder(t(lang, 'shop.buttons.select_item'))
           .addOptions(opts),
       )
     );
   }
 
-  const [prevBtn, nextBtn] = createPaginationButtons(`shop:cat:${category}`, page, totalPages);
+  const [prevBtn, nextBtn] = createPaginationButtons(`shop:cat:${category}`, page, totalPages, lang);
   const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    createBackButton('← Back', 'shop:main'),
+    createBackButton(t(lang, 'shop.buttons.back'), 'shop:main'),
     prevBtn,
     nextBtn,
   );
@@ -133,15 +137,19 @@ export function buildCategoryRows(
    ITEM DETAIL
 ───────────────────────────────────────────────────────────────────────── */
 
-export function buildItemDetailRows(item: ShopItem, canAfford: boolean, outOfStock: boolean): AnyRow[] {
+export function buildItemDetailRows(item: ShopItem, canAfford: boolean, outOfStock: boolean, lang = 'en'): AnyRow[] {
+  const purchaseLabel = outOfStock
+    ? t(lang, 'shop.buttons.out_of_stock')
+    : `💳 ${formatCoins(item.price)}`;
+
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`shop:buy:${item.id}`)
-      .setLabel(outOfStock ? '❌ Out of Stock' : `💳 Purchase — ${formatCoins(item.price)}`)
+      .setLabel(purchaseLabel)
       .setStyle(ButtonStyle.Success)
       .setDisabled(!canAfford || outOfStock || !item.available),
-    createBackButton('← Back', `shop:cat:${item.category}:0`),
-    createMainButton(),
+    createBackButton(t(lang, 'shop.buttons.back'), `shop:cat:${item.category}:0`),
+    createMainButton(lang),
   );
   return validateComponentRows([row], 'buildItemDetailRows');
 }
@@ -150,7 +158,7 @@ export function buildItemDetailRows(item: ShopItem, canAfford: boolean, outOfSto
    INVENTORY
 ───────────────────────────────────────────────────────────────────────── */
 
-export function buildInventoryRows(items: InventoryItem[], page: number, totalPages: number): AnyRow[] {
+export function buildInventoryRows(items: InventoryItem[], page: number, totalPages: number, lang = 'en'): AnyRow[] {
   const rows: AnyRow[] = [];
   const PAGE_SIZE = 6;
   const slice = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -162,7 +170,7 @@ export function buildInventoryRows(items: InventoryItem[], page: number, totalPa
         new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId('shop_sel:use')
-            .setPlaceholder('⚡ Select an item to use...')
+            .setPlaceholder(t(lang, 'shop.buttons.use_placeholder'))
             .addOptions(
               usable.slice(0, 25).map(inv =>
                 new StringSelectMenuOptionBuilder()
@@ -177,10 +185,10 @@ export function buildInventoryRows(items: InventoryItem[], page: number, totalPa
     }
   }
 
-  const [prevBtn, nextBtn] = createInventoryPaginationButtons(page, totalPages);
+  const [prevBtn, nextBtn] = createInventoryPaginationButtons(page, totalPages, lang);
   rows.push(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('shop:main').setLabel('🏠 Shop').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('shop:main').setLabel(t(lang, 'shop.buttons.shop_home')).setStyle(ButtonStyle.Secondary),
       prevBtn,
       nextBtn,
     )
@@ -193,7 +201,7 @@ export function buildInventoryRows(items: InventoryItem[], page: number, totalPa
    FEATURED
 ───────────────────────────────────────────────────────────────────────── */
 
-export function buildFeaturedRows(featuredItems: ShopItem[], playerCoins: number): AnyRow[] {
+export function buildFeaturedRows(featuredItems: ShopItem[], playerCoins: number, lang = 'en'): AnyRow[] {
   const rows: AnyRow[] = [];
   const discountedItems = featuredItems.map(item => ({
     item,
@@ -206,7 +214,7 @@ export function buildFeaturedRows(featuredItems: ShopItem[], playerCoins: number
         ...discountedItems.slice(0, 3).map(({ item, discountedPrice }) =>
           new ButtonBuilder()
             .setCustomId(`shop:buyfeat:${item.id}`)
-            .setLabel(`${item.icon} Buy — ${formatCoins(discountedPrice)}`)
+            .setLabel(`${item.icon} ${formatCoins(discountedPrice)}`)
             .setStyle(ButtonStyle.Success)
             .setDisabled(playerCoins < discountedPrice || !item.available)
         )
@@ -216,7 +224,7 @@ export function buildFeaturedRows(featuredItems: ShopItem[], playerCoins: number
 
   rows.push(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      createBackButton('← Back to Shop', 'shop:main'),
+      createBackButton(t(lang, 'shop.buttons.back_to_shop'), 'shop:main'),
     )
   );
 

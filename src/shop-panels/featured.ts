@@ -12,6 +12,7 @@ export async function showFeatured(interaction: ButtonInteraction): Promise<void
     user.displayName,
     user.displayAvatarURL({ extension: 'png', size: 256 }),
   );
+  const lang = player.language ?? 'en';
 
   const allItems = ShopItemDB.getAvailable();
   const featuredKeys = getDailyFeaturedKeys(allItems);
@@ -19,8 +20,8 @@ export async function showFeatured(interaction: ButtonInteraction): Promise<void
     .map(k => allItems.find(i => i.item_key === k))
     .filter(Boolean) as typeof allItems;
 
-  const embed = buildFeaturedEmbed(featuredItems, player);
-  const rows = buildFeaturedRows(featuredItems, player.coins);
+  const embed = buildFeaturedEmbed(featuredItems, player, lang);
+  const rows = buildFeaturedRows(featuredItems, player.coins, lang);
 
   await interaction.update({ embeds: [embed], components: rows });
 }
@@ -38,6 +39,7 @@ export async function buyFeaturedItem(interaction: ButtonInteraction, itemId: st
     user.displayName,
     user.displayAvatarURL({ extension: 'png', size: 256 }),
   );
+  const lang = player.language ?? 'en';
 
   const discountedPrice = Math.floor(item.price * (1 - DAILY_DISCOUNT));
 
@@ -59,12 +61,12 @@ export async function buyFeaturedItem(interaction: ButtonInteraction, itemId: st
   if (item.stock > 0) ShopItemDB.decrementStock(item.id);
 
   const updatedPlayer = PlayerSystem.getOrCreate(user.id, user.displayName, user.displayAvatarURL({ extension: 'png', size: 256 }));
-  const embed = buildPurchaseSuccessEmbed({ ...item, price: discountedPrice }, updatedPlayer);
+  const embed = buildPurchaseSuccessEmbed({ ...item, price: discountedPrice }, updatedPlayer, lang);
   const allItems = ShopItemDB.getAvailable();
   const featuredItems = getDailyFeaturedKeys(allItems)
     .map(k => allItems.find(i => i.item_key === k))
     .filter(Boolean) as typeof allItems;
-  const rows = buildFeaturedRows(featuredItems, updatedPlayer.coins);
+  const rows = buildFeaturedRows(featuredItems, updatedPlayer.coins, lang);
 
   await interaction.update({ embeds: [embed], components: rows });
 }

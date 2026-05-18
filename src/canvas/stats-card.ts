@@ -5,27 +5,23 @@ import {
 import { COLORS } from '../utils/constants.js';
 import { getRank, formatCoins, formatNumber, getSuccessRate } from '../utils/helpers.js';
 import type { Player, HeistSubmission, Crew } from '../database/schema.js';
+import { ThemeEngine } from '../systems/theme.js';
 
 const W = 700;
-const CREW_BG = 'assets/backgrounds/crew-card.png';
-const STATS_BG = 'assets/backgrounds/profile-card.png';
 
 /* ─────────────────────────── CREW CARD ─────────────────────────── */
 
 export async function generateCrewCard(crew: Crew, members: Player[], owner: Player): Promise<Buffer> {
   const H = 180 + Math.ceil(members.length / 2) * 72 + 60;
   const { canvas, ctx } = makeCanvas(W, H);
+  const theme = ThemeEngine.getActive();
 
-  const bg = await tryLoadImage(CREW_BG);
-  if (bg) {
-    ctx.drawImage(bg as any, 0, 0, W, H);
-  } else {
-    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-    bgGrad.addColorStop(0, '#0D0A00');
-    bgGrad.addColorStop(1, '#0A0A14');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, W, H);
-  }
+  // Dynamic theme background
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, theme.gradientA);
+  bgGrad.addColorStop(1, theme.gradientB);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
   ctx.fillRect(0, 0, W, H);
@@ -151,26 +147,25 @@ export async function generateCrewCard(crew: Crew, members: Player[], owner: Pla
 export async function generateStatsCard(player: Player, recentHeists: HeistSubmission[]): Promise<Buffer> {
   const H = 520;
   const { canvas, ctx } = makeCanvas(W, H);
+  const theme = ThemeEngine.getActive();
 
-  const bg = await tryLoadImage(STATS_BG);
-  if (bg) {
-    ctx.drawImage(bg as any, 0, 0, W, H);
-  } else {
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, '#0A0A14');
-    grad.addColorStop(1, '#0D0A00');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-  }
+  // Dynamic theme background
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, theme.gradientA);
+  bgGrad.addColorStop(1, theme.gradientB);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(0, 0, W, H);
   drawGrid(ctx, 0, 0, W, H, 35);
-  ctx.fillStyle = COLORS.primary;
+
+  const primaryHex = '#' + theme.primaryColor.toString(16).padStart(6, '0');
+  ctx.fillStyle = primaryHex;
   ctx.fillRect(0, 0, 4, H);
 
   // Title
-  drawGlowText(ctx, 'CRIMINAL STATISTICS', 20, 46, '#FFFFFF', COLORS.primary, 22, 'bold');
+  drawGlowText(ctx, 'CRIMINAL STATISTICS', 20, 46, '#FFFFFF', primaryHex, 22, 'bold');
   ctx.font = '13px Arial';
   ctx.fillStyle = COLORS.textMuted;
   ctx.textAlign = 'left';
@@ -184,7 +179,7 @@ export async function generateStatsCard(player: Player, recentHeists: HeistSubmi
 
   // Stat boxes
   const stats = [
-    { label: 'TOTAL XP', value: formatNumber(player.xp), color: COLORS.primary },
+    { label: 'TOTAL XP', value: formatNumber(player.xp), color: primaryHex },
     { label: 'COINS', value: formatCoins(player.coins), color: COLORS.gold },
     { label: 'TOTAL HEISTS', value: String(player.total_heists), color: '#FFFFFF' },
     { label: 'SUCCESSFUL', value: String(player.successful_heists), color: COLORS.success },

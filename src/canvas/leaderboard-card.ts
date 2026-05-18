@@ -5,14 +5,12 @@ import {
 import { COLORS } from '../utils/constants.js';
 import { getRank, formatNumber, formatCoins } from '../utils/helpers.js';
 import type { Player } from '../database/schema.js';
-import path from 'path';
+import { ThemeEngine } from '../systems/theme.js';
 
 const W = 700;
 const ROW_H = 64;
 const HEADER_H = 90;
 const FOOTER_H = 36;
-
-const BACKGROUND_IMAGE = path.join(process.cwd(), 'assets', 'backgrounds', 'leaderboard-card-v2.png');
 
 const MEDALS = [
   { text: '01', color: '#FFD700' },
@@ -23,32 +21,31 @@ const MEDALS = [
 export async function generateLeaderboardCard(players: Player[], type: 'xp' | 'coins' = 'xp'): Promise<Buffer> {
   const H = HEADER_H + players.length * ROW_H + FOOTER_H + 20;
   const { canvas, ctx } = makeCanvas(W, H);
+  const theme = ThemeEngine.getActive();
 
-  // Background
-  const bg = await tryLoadImage(BACKGROUND_IMAGE);
-  if (bg) {
-    ctx.drawImage(bg, 0, 0, W, H);
-  } else {
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-    bgGrad.addColorStop(0, '#0A0A14');
-    bgGrad.addColorStop(1, '#0D0D1A');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, W, H);
-  }
+  // Dynamic theme background — no static file dependency
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, theme.gradientA);
+  bgGrad.addColorStop(1, theme.gradientB);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
   ctx.fillRect(0, 0, W, H);
   drawGrid(ctx, 0, 0, W, H, 35);
 
+  const primaryHex = '#' + theme.primaryColor.toString(16).padStart(6, '0');
+  const accentHex  = COLORS.accent;
+
   const stripeGrad = ctx.createLinearGradient(0, 0, 0, H);
   stripeGrad.addColorStop(0, COLORS.gold);
-  stripeGrad.addColorStop(1, COLORS.accent);
+  stripeGrad.addColorStop(1, accentHex);
   ctx.fillStyle = stripeGrad;
   ctx.fillRect(0, 0, 4, H);
 
   // Header
   drawGlowText(ctx, type === 'xp' ? '⚔ XP LEADERBOARD' : '💰 WEALTH LEADERBOARD',
-    W / 2, 52, COLORS.primary, COLORS.primary, 26, 'bold', 'center');
+    W / 2, 52, primaryHex, primaryHex, 26, 'bold', 'center');
   ctx.font = '13px Arial';
   ctx.fillStyle = COLORS.textMuted;
   ctx.textAlign = 'center';
@@ -110,13 +107,13 @@ export async function generateLeaderboardCard(players: Player[], type: 'xp' | 'c
         ctx.beginPath();
         ctx.arc(avX + avSize / 2, avY + avSize / 2, avSize / 2, 0, Math.PI * 2);
         ctx.clip();
-        ctx.drawImage(avatar, avX, avY, avSize, avSize);
+        ctx.drawImage(avatar as any, avX, avY, avSize, avSize);
         ctx.restore();
       }
     } else {
       fillRoundedRect(ctx, avX, avY, avSize, avSize, avSize / 2, COLORS.surface);
       ctx.font = 'bold 18px Arial';
-      ctx.fillStyle = COLORS.primary;
+      ctx.fillStyle = primaryHex;
       ctx.textAlign = 'center';
       ctx.fillText(p.display_name.charAt(0).toUpperCase(), avX + avSize / 2, avY + avSize / 2 + 7);
     }
@@ -133,7 +130,7 @@ export async function generateLeaderboardCard(players: Player[], type: 'xp' | 'c
     // Value
     ctx.textAlign = 'right';
     ctx.font = 'bold 18px Arial';
-    ctx.fillStyle = type === 'xp' ? COLORS.primary : COLORS.gold;
+    ctx.fillStyle = type === 'xp' ? primaryHex : COLORS.gold;
     ctx.fillText(type === 'xp' ? `${formatNumber(p.xp)} XP` : formatCoins(p.coins), W - 28, ry + 36);
   }
 

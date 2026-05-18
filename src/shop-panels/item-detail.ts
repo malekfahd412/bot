@@ -20,11 +20,12 @@ export async function showItemDetail(
     user.displayName,
     user.displayAvatarURL({ extension: 'png', size: 256 }),
   );
+  const lang = player.language ?? 'en';
 
   const canAfford = player.coins >= item.price;
   const outOfStock = item.stock === 0;
-  const embed = buildItemDetailEmbed(item, player);
-  const rows = buildItemDetailRows(item, canAfford, outOfStock);
+  const embed = buildItemDetailEmbed(item, player, lang);
+  const rows = buildItemDetailRows(item, canAfford, outOfStock, lang);
 
   await interaction.update({ embeds: [embed], components: rows });
 }

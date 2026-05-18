@@ -16,8 +16,10 @@ export async function showUpgradesPanel(interaction: ButtonInteraction): Promise
     return;
   }
 
+  const lang = player.language ?? 'en';
+
   await interaction.update({
-    embeds: [buildUpgradesEmbed(crew)],
-    components: buildUpgradesRows(crew),
+    embeds: [buildUpgradesEmbed(crew, lang)],
+    components: buildUpgradesRows(crew, lang),
   });
 }

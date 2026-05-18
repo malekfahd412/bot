@@ -24,14 +24,15 @@ export async function showCategory(
     user.displayName,
     user.displayAvatarURL({ extension: 'png', size: 256 }),
   );
+  const lang = player.language ?? 'en';
 
   const allItems = ShopItemDB.getByCategory(category);
   const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
   const safePage = Math.max(0, Math.min(page, totalPages - 1));
   const pageItems = allItems.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  const embed = buildCategoryEmbed(category as keyof typeof SHOP_CATEGORIES, pageItems, safePage, totalPages, player);
-  const rows = buildCategoryRows(pageItems, category, safePage, totalPages);
+  const embed = buildCategoryEmbed(category as keyof typeof SHOP_CATEGORIES, pageItems, safePage, totalPages, player, lang);
+  const rows = buildCategoryRows(pageItems, category, safePage, totalPages, lang);
 
   await interaction.update({ embeds: [embed], components: rows });
 }

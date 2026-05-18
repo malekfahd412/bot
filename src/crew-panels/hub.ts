@@ -27,11 +27,12 @@ export async function showCrewHub(interaction: AnyInteraction): Promise<void> {
   );
 
   const player = PlayerDB.findByDiscordId(interaction.user.id)!;
+  const lang = player.language ?? 'en';
 
   if (!player.crew_id) {
     await reply(interaction, {
-      embeds: [buildNoCrewEmbed()],
-      components: buildNoCrewRows(),
+      embeds: [buildNoCrewEmbed(lang)],
+      components: buildNoCrewRows(lang),
     });
     return;
   }
@@ -40,8 +41,8 @@ export async function showCrewHub(interaction: AnyInteraction): Promise<void> {
   if (!crew) {
     PlayerDB.update(interaction.user.id, { crew_id: null as any, crew_role: 'member' });
     await reply(interaction, {
-      embeds: [buildNoCrewEmbed()],
-      components: buildNoCrewRows(),
+      embeds: [buildNoCrewEmbed(lang)],
+      components: buildNoCrewRows(lang),
     });
     return;
   }
@@ -51,17 +52,19 @@ export async function showCrewHub(interaction: AnyInteraction): Promise<void> {
   const isOwnerOrOfficer = player.crew_role === 'owner' || player.crew_role === 'officer';
 
   await reply(interaction, {
-    embeds: [buildHubEmbed(crew, members, territories)],
-    components: buildHubRows(isOwnerOrOfficer),
+    embeds: [buildHubEmbed(crew, members, territories, lang)],
+    components: buildHubRows(isOwnerOrOfficer, lang),
   });
 }
 
 /* ─── BROWSE CREWS ─── */
 
 export async function showBrowse(interaction: ButtonInteraction): Promise<void> {
+  const player = PlayerDB.findByDiscordId(interaction.user.id);
+  const lang = player?.language ?? 'en';
   const crews = CrewDB.getAllCrews();
   await interaction.update({
-    embeds: [buildBrowseEmbed(crews)],
-    components: buildNoCrewRows(),
+    embeds: [buildBrowseEmbed(crews, lang)],
+    components: buildNoCrewRows(lang),
   });
 }

@@ -18,14 +18,15 @@ export async function showMembersPanel(interaction: ButtonInteraction, page: num
     return;
   }
 
+  const lang = player.language ?? 'en';
   const members = CrewDB.getMembers(crew.id);
   const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(0, page), totalPages - 1);
   const isOwner = player.crew_role === 'owner';
 
   await interaction.update({
-    embeds: [buildMembersEmbed(crew, members, safePage, totalPages)],
-    components: buildMembersRows(safePage, totalPages, isOwner, members),
+    embeds: [buildMembersEmbed(crew, members, safePage, totalPages, lang)],
+    components: buildMembersRows(safePage, totalPages, isOwner, members, lang),
   });
 }
 
@@ -48,6 +49,7 @@ export async function showMemberActions(interaction: any, targetDiscordId: strin
     return;
   }
 
+  const lang = player.language ?? 'en';
   const isOfficer = target.crew_role === 'officer';
 
   const embed = new EmbedBuilder()
@@ -63,6 +65,6 @@ export async function showMemberActions(interaction: any, targetDiscordId: strin
 
   await interaction.update({
     embeds: [embed],
-    components: buildMemberActionRows(targetDiscordId, isOfficer),
+    components: buildMemberActionRows(targetDiscordId, isOfficer, lang),
   });
 }

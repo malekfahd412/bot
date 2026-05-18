@@ -23,6 +23,94 @@
     "stock":    "📦 Stock",
     "rarity":   "✨ Rarity"
   },
+  "embeds": {
+    "main": {
+      "title":            "🛒  LOS SANTOS BLACK MARKET",
+      "quote":            "\"Everything has a price in this city. Question is — can you afford it?\"",
+      "featured_header":  "⭐ DAILY FEATURED — Refreshes at midnight",
+      "no_featured":      "*No featured items today.*",
+      "balance_field":    "💰 Your Balance",
+      "categories_field": "📦 Categories",
+      "footer":           "GTA Heist RPG • Black Market  |  Use the buttons below to browse"
+    },
+    "category": {
+      "no_items":     "*No items in this category.*",
+      "balance_field":"💰 Balance",
+      "items_field":  "📦 Items",
+      "page_field":   "📄 Page",
+      "footer":       "Select an item from the dropdown to view details & purchase"
+    },
+    "item_detail": {
+      "rarity_field":   "✨ Rarity",
+      "price_field":    "🏷️ Price",
+      "stock_field":    "📦 Stock",
+      "duration_field": "⏱️ Duration",
+      "balance_field":  "💰 Balance",
+      "stock_unlimited":"∞ Unlimited",
+      "stock_out":      "❌ Out of Stock",
+      "stock_remaining":"{{count}} remaining",
+      "can_afford":     "✅ You can afford this item.",
+      "cannot_afford":  "❌ You need {{amount}} more.",
+      "balance_ok":     "{{balance}} ✅",
+      "balance_no":     "{{balance}} ❌ Insufficient"
+    },
+    "inventory": {
+      "title":             "🎒  CRIMINAL STASH — {{name}}",
+      "subtitle":          "Your personal arsenal of tools and consumables.",
+      "inventory_header":  "📦 INVENTORY",
+      "boosts_header":     "⚡ ACTIVE BOOSTS",
+      "empty":             "*Your inventory is empty.*",
+      "no_boosts":         "*No active boosts.*",
+      "balance_field":     "💰 Balance",
+      "page_field":        "📄 Page",
+      "footer":            "Select an item to use it • Boosts activate immediately"
+    },
+    "featured": {
+      "title":         "⭐  DAILY FEATURED ITEMS",
+      "subtitle":      "Hand-picked deals — available for 24 hours only. Resets at midnight.",
+      "no_items":      "*No featured items today.*",
+      "balance_field": "💰 Your Balance",
+      "resets_field":  "🕐 Resets",
+      "footer":        "GTA Heist RPG • Daily Black Market Deals",
+      "discount_note": "today only"
+    },
+    "purchase_success": {
+      "title":           "✅  PURCHASE COMPLETE",
+      "body":            "**{{name}}** has been added to your stash.",
+      "rarity_field":    "✨ Rarity",
+      "paid_field":      "💸 Paid",
+      "remaining_field": "💰 Remaining",
+      "footer":          "Use /shop → My Inventory to use your new item"
+    },
+    "crate_opened": {
+      "title":  "📦  CRATE OPENED!",
+      "body":   "You cracked open **{{crate}}** and found...",
+      "rarity_field": "✨ Rarity",
+      "footer": "The reward has been added to your inventory"
+    },
+    "boost_activated": {
+      "title":         "⚡  BOOST ACTIVATED",
+      "body":          "**{{icon}} {{name}}** is now active.",
+      "expires_field": "⏱️ Expires",
+      "footer":        "Your boost is now active — go run some heists!"
+    },
+    "item_used": {
+      "title": "✅  ITEM USED",
+      "body":  "**{{icon}} {{name}}** has been applied."
+    }
+  },
+  "buttons": {
+    "daily_deals":       "⭐ Daily Deals",
+    "my_inventory":      "🎒 My Inventory",
+    "shop_home":         "🏠 Main",
+    "back":              "← Back",
+    "back_to_shop":      "← Back to Shop",
+    "prev":              "◀ Prev",
+    "next":              "Next ▶",
+    "out_of_stock":      "❌ Out of Stock",
+    "use_placeholder":   "⚡ Select an item to use...",
+    "select_item":       "📋 Select an item to view details..."
+  },
   "purchase": {
     "confirm_title": "🛒  Confirm Purchase",
     "confirm_desc":  "You are about to buy **{{item}}** for **{{price}}**.\nYour balance: **{{balance}}**",

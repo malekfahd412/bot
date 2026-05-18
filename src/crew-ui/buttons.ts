@@ -8,39 +8,40 @@ import {
 import type { Player, Crew, Territory, CrewWar } from '../database/schema.js';
 import { CREW_UPGRADES } from './upgrades-config.js';
 import { CrewUpgradeDB } from '../database/db.js';
+import { t } from '../utils/i18n.js';
 
 /* ─── BACK TO HUB ─── */
 
-export function buildBackRow(): ActionRowBuilder<ButtonBuilder> {
+export function buildBackRow(lang = 'en'): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId('crew:hub').setLabel('← Back to Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+    new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.back_to_hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
   );
 }
 
 /* ─── NO-CREW BUTTONS ─── */
 
-export function buildNoCrewRows(): ActionRowBuilder<ButtonBuilder>[] {
+export function buildNoCrewRows(lang = 'en'): ActionRowBuilder<ButtonBuilder>[] {
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('crew:create_modal').setLabel('Create Crew').setStyle(ButtonStyle.Success).setEmoji('➕'),
-      new ButtonBuilder().setCustomId('crew:browse').setLabel('Browse Crews').setStyle(ButtonStyle.Primary).setEmoji('🔍'),
+      new ButtonBuilder().setCustomId('crew:create_modal').setLabel(t(lang, 'crew.buttons.create')).setStyle(ButtonStyle.Success).setEmoji('➕'),
+      new ButtonBuilder().setCustomId('crew:browse').setLabel(t(lang, 'crew.buttons.browse')).setStyle(ButtonStyle.Primary).setEmoji('🔍'),
     ),
   ];
 }
 
 /* ─── MAIN HUB NAVIGATION ─── */
 
-export function buildHubRows(isOwnerOrOfficer: boolean): ActionRowBuilder<ButtonBuilder>[] {
+export function buildHubRows(isOwnerOrOfficer: boolean, lang = 'en'): ActionRowBuilder<ButtonBuilder>[] {
   const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId('crew:members:0').setLabel('Members').setStyle(ButtonStyle.Primary).setEmoji('👥'),
-    new ButtonBuilder().setCustomId('crew:bank').setLabel('Crew Bank').setStyle(ButtonStyle.Primary).setEmoji('💰'),
-    new ButtonBuilder().setCustomId('crew:territories').setLabel('Territories').setStyle(ButtonStyle.Primary).setEmoji('🏴'),
-    new ButtonBuilder().setCustomId('crew:wars').setLabel('Crew Wars').setStyle(ButtonStyle.Danger).setEmoji('⚔️'),
-    new ButtonBuilder().setCustomId('crew:upgrades').setLabel('Upgrades').setStyle(ButtonStyle.Primary).setEmoji('📦'),
+    new ButtonBuilder().setCustomId('crew:members:0').setLabel(t(lang, 'crew.buttons.members')).setStyle(ButtonStyle.Primary).setEmoji('👥'),
+    new ButtonBuilder().setCustomId('crew:bank').setLabel(t(lang, 'crew.buttons.crew_bank')).setStyle(ButtonStyle.Primary).setEmoji('💰'),
+    new ButtonBuilder().setCustomId('crew:territories').setLabel(t(lang, 'crew.buttons.territories')).setStyle(ButtonStyle.Primary).setEmoji('🏴'),
+    new ButtonBuilder().setCustomId('crew:wars').setLabel(t(lang, 'crew.buttons.crew_wars')).setStyle(ButtonStyle.Danger).setEmoji('⚔️'),
+    new ButtonBuilder().setCustomId('crew:upgrades').setLabel(t(lang, 'crew.buttons.upgrades')).setStyle(ButtonStyle.Primary).setEmoji('📦'),
   );
   const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId('crew:stats').setLabel('Statistics').setStyle(ButtonStyle.Secondary).setEmoji('📊'),
-    new ButtonBuilder().setCustomId('crew:management').setLabel('Management').setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
+    new ButtonBuilder().setCustomId('crew:stats').setLabel(t(lang, 'crew.buttons.statistics')).setStyle(ButtonStyle.Secondary).setEmoji('📊'),
+    new ButtonBuilder().setCustomId('crew:management').setLabel(t(lang, 'crew.buttons.management')).setStyle(ButtonStyle.Secondary).setEmoji('⚙️'),
   );
   return [row1, row2];
 }
@@ -52,21 +53,22 @@ export function buildMembersRows(
   totalPages: number,
   isOwner: boolean,
   members: Player[],
+  lang = 'en',
 ): ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] {
   const rows: ActionRowBuilder<any>[] = [];
 
   const navRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`crew:members:${page - 1}`)
-      .setLabel('◀ Prev')
+      .setLabel(t(lang, 'crew.buttons.prev'))
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(page === 0),
     new ButtonBuilder()
       .setCustomId(`crew:members:${page + 1}`)
-      .setLabel('Next ▶')
+      .setLabel(t(lang, 'crew.buttons.next'))
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(page >= totalPages - 1),
-    new ButtonBuilder().setCustomId('crew:hub').setLabel('← Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+    new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
   );
   rows.push(navRow);
 
@@ -76,7 +78,7 @@ export function buildMembersRows(
       const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId('crew_select:member_action')
-          .setPlaceholder('⚙️ Select a member to manage...')
+          .setPlaceholder(t(lang, 'crew.buttons.member_manage_ph'))
           .addOptions(
             nonOwners.map(m =>
               new StringSelectMenuOptionBuilder()
@@ -94,29 +96,29 @@ export function buildMembersRows(
   return rows;
 }
 
-/* ─── MEMBER ACTION ROW (after selecting a member) ─── */
+/* ─── MEMBER ACTION ROW ─── */
 
-export function buildMemberActionRows(targetId: string, isOfficer: boolean): ActionRowBuilder<ButtonBuilder>[] {
+export function buildMemberActionRows(targetId: string, isOfficer: boolean, lang = 'en'): ActionRowBuilder<ButtonBuilder>[] {
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(`crew:promote:${targetId}`)
-        .setLabel(isOfficer ? 'Demote to Member' : 'Promote to Officer')
+        .setLabel(isOfficer ? t(lang, 'crew.buttons.demote_member') : t(lang, 'crew.buttons.promote_officer'))
         .setStyle(isOfficer ? ButtonStyle.Secondary : ButtonStyle.Primary)
         .setEmoji(isOfficer ? '▪️' : '⭐'),
       new ButtonBuilder()
         .setCustomId(`crew:kick:${targetId}`)
-        .setLabel('Kick from Crew')
+        .setLabel(t(lang, 'crew.buttons.kick'))
         .setStyle(ButtonStyle.Danger)
         .setEmoji('🚫'),
       new ButtonBuilder()
         .setCustomId(`crew:transfer:${targetId}`)
-        .setLabel('Transfer Ownership')
+        .setLabel(t(lang, 'crew.buttons.transfer'))
         .setStyle(ButtonStyle.Secondary)
         .setEmoji('👑'),
       new ButtonBuilder()
         .setCustomId('crew:members:0')
-        .setLabel('← Back')
+        .setLabel(t(lang, 'crew.buttons.back'))
         .setStyle(ButtonStyle.Secondary),
     ),
   ];
@@ -124,11 +126,11 @@ export function buildMemberActionRows(targetId: string, isOfficer: boolean): Act
 
 /* ─── BANK PANEL ─── */
 
-export function buildBankRows(isOwner: boolean): ActionRowBuilder<ButtonBuilder>[] {
+export function buildBankRows(isOwner: boolean, lang = 'en'): ActionRowBuilder<ButtonBuilder>[] {
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId('crew:bank_deposit_modal').setLabel('Deposit').setStyle(ButtonStyle.Success).setEmoji('📥'),
-    new ButtonBuilder().setCustomId('crew:bank_withdraw_modal').setLabel('Withdraw').setStyle(ButtonStyle.Danger).setEmoji('📤').setDisabled(!isOwner),
-    new ButtonBuilder().setCustomId('crew:hub').setLabel('← Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+    new ButtonBuilder().setCustomId('crew:bank_deposit_modal').setLabel(t(lang, 'crew.buttons.deposit')).setStyle(ButtonStyle.Success).setEmoji('📥'),
+    new ButtonBuilder().setCustomId('crew:bank_withdraw_modal').setLabel(t(lang, 'crew.buttons.withdraw')).setStyle(ButtonStyle.Danger).setEmoji('📤').setDisabled(!isOwner),
+    new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
   );
   return [row];
 }
@@ -138,25 +140,26 @@ export function buildBankRows(isOwner: boolean): ActionRowBuilder<ButtonBuilder>
 export function buildTerritoriesRows(
   allTerritories: Territory[],
   crewId: string,
+  lang = 'en',
 ): ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] {
   const rows: ActionRowBuilder<any>[] = [];
 
-  const unclaimed = allTerritories.filter(t => !t.control_crew_id);
-  const enemy = allTerritories.filter(t => t.control_crew_id && t.control_crew_id !== crewId);
+  const unclaimed = allTerritories.filter(t2 => !t2.control_crew_id);
+  const enemy = allTerritories.filter(t2 => t2.control_crew_id && t2.control_crew_id !== crewId);
   const attackable = [...unclaimed, ...enemy].slice(0, 25);
 
   if (attackable.length > 0) {
     const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('crew_select:territory_attack')
-        .setPlaceholder('⚔️ Select a territory to attack...')
+        .setPlaceholder(t(lang, 'crew.buttons.territory_attack_ph'))
         .addOptions(
-          attackable.map(t =>
+          attackable.map(t2 =>
             new StringSelectMenuOptionBuilder()
-              .setLabel(t.name)
-              .setDescription(`${t.income_per_hour}/hr | Risk: ${t.risk_level} | ${t.control_crew_id ? 'Enemy-held' : 'Unclaimed'}`)
-              .setValue(t.id)
-              .setEmoji(t.control_crew_id ? '🔴' : '⚪')
+              .setLabel(t2.name)
+              .setDescription(`${t2.income_per_hour}/hr | Risk: ${t2.risk_level} | ${t2.control_crew_id ? 'Enemy-held' : 'Unclaimed'}`)
+              .setValue(t2.id)
+              .setEmoji(t2.control_crew_id ? '🔴' : '⚪')
           )
         )
     );
@@ -165,7 +168,7 @@ export function buildTerritoriesRows(
 
   rows.push(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('crew:hub').setLabel('← Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+      new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
     )
   );
 
@@ -178,6 +181,7 @@ export function buildWarsRows(
   allCrews: Crew[],
   crewId: string,
   activeWars: CrewWar[],
+  lang = 'en',
 ): ActionRowBuilder<ButtonBuilder | StringSelectMenuBuilder>[] {
   const rows: ActionRowBuilder<any>[] = [];
 
@@ -188,7 +192,7 @@ export function buildWarsRows(
     const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('crew_select:war_declare')
-        .setPlaceholder('⚔️ Declare war on a crew...')
+        .setPlaceholder(t(lang, 'crew.buttons.war_declare_ph'))
         .addOptions(
           enemies.map(c =>
             new StringSelectMenuOptionBuilder()
@@ -203,14 +207,14 @@ export function buildWarsRows(
   }
 
   const btnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder().setCustomId('crew:hub').setLabel('← Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+    new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
   );
 
   if (pendingForUs.length > 0) {
     btnRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`crew:war_accept:${pendingForUs[0].id}`)
-        .setLabel('Accept War Challenge')
+        .setLabel(t(lang, 'crew.buttons.accept_war'))
         .setStyle(ButtonStyle.Danger)
         .setEmoji('⚔️'),
     );
@@ -222,7 +226,7 @@ export function buildWarsRows(
 
 /* ─── UPGRADES PANEL ─── */
 
-export function buildUpgradesRows(crew: Crew): ActionRowBuilder<ButtonBuilder>[] {
+export function buildUpgradesRows(crew: Crew, lang = 'en'): ActionRowBuilder<ButtonBuilder>[] {
   const purchased = CrewUpgradeDB.getAll(crew.id).map(u => u.upgrade_key);
   const upgrades = Object.values(CREW_UPGRADES);
 
@@ -256,7 +260,7 @@ export function buildUpgradesRows(crew: Crew): ActionRowBuilder<ButtonBuilder>[]
 
   rows.push(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('crew:hub').setLabel('← Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+      new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
     )
   );
 
@@ -265,46 +269,46 @@ export function buildUpgradesRows(crew: Crew): ActionRowBuilder<ButtonBuilder>[]
 
 /* ─── STATS PANEL ─── */
 
-export function buildStatsRows(): ActionRowBuilder<ButtonBuilder>[] {
+export function buildStatsRows(lang = 'en'): ActionRowBuilder<ButtonBuilder>[] {
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('crew:hub').setLabel('← Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+      new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
     ),
   ];
 }
 
 /* ─── MANAGEMENT PANEL ─── */
 
-export function buildManagementRows(isOwner: boolean): ActionRowBuilder<ButtonBuilder>[] {
+export function buildManagementRows(isOwner: boolean, lang = 'en'): ActionRowBuilder<ButtonBuilder>[] {
   if (!isOwner) {
     return [
       new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId('crew:leave').setLabel('Leave Crew').setStyle(ButtonStyle.Danger).setEmoji('🚪'),
-        new ButtonBuilder().setCustomId('crew:hub').setLabel('← Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+        new ButtonBuilder().setCustomId('crew:leave').setLabel(t(lang, 'crew.buttons.leave')).setStyle(ButtonStyle.Danger).setEmoji('🚪'),
+        new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
       ),
     ];
   }
 
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('crew:mgmt_edit_modal').setLabel('Edit Details').setStyle(ButtonStyle.Primary).setEmoji('📝'),
-      new ButtonBuilder().setCustomId('crew:mgmt_invite_modal').setLabel('Invite Player').setStyle(ButtonStyle.Success).setEmoji('📨'),
-      new ButtonBuilder().setCustomId('crew:hub').setLabel('← Hub').setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
+      new ButtonBuilder().setCustomId('crew:mgmt_edit_modal').setLabel(t(lang, 'crew.buttons.edit_details')).setStyle(ButtonStyle.Primary).setEmoji('📝'),
+      new ButtonBuilder().setCustomId('crew:mgmt_invite_modal').setLabel(t(lang, 'crew.buttons.invite_player')).setStyle(ButtonStyle.Success).setEmoji('📨'),
+      new ButtonBuilder().setCustomId('crew:hub').setLabel(t(lang, 'crew.buttons.hub')).setStyle(ButtonStyle.Secondary).setEmoji('🏠'),
     ),
     new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId('crew:mgmt_disband').setLabel('Disband Crew').setStyle(ButtonStyle.Danger).setEmoji('💥'),
-      new ButtonBuilder().setCustomId('crew:leave').setLabel('Leave Crew').setStyle(ButtonStyle.Danger).setEmoji('🚪').setDisabled(true),
+      new ButtonBuilder().setCustomId('crew:mgmt_disband').setLabel(t(lang, 'crew.buttons.disband')).setStyle(ButtonStyle.Danger).setEmoji('💥'),
+      new ButtonBuilder().setCustomId('crew:leave').setLabel(t(lang, 'crew.buttons.leave')).setStyle(ButtonStyle.Danger).setEmoji('🚪').setDisabled(true),
     ),
   ];
 }
 
 /* ─── CONFIRM / CANCEL ─── */
 
-export function buildConfirmCancelRows(confirmId: string, label = 'Confirm'): ActionRowBuilder<ButtonBuilder>[] {
+export function buildConfirmCancelRows(confirmId: string, label = 'Confirm', lang = 'en'): ActionRowBuilder<ButtonBuilder>[] {
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId(confirmId).setLabel(label).setStyle(ButtonStyle.Danger).setEmoji('✅'),
-      new ButtonBuilder().setCustomId('crew:management').setLabel('Cancel').setStyle(ButtonStyle.Secondary).setEmoji('✖️'),
+      new ButtonBuilder().setCustomId('crew:management').setLabel(t(lang, 'crew.buttons.cancel')).setStyle(ButtonStyle.Secondary).setEmoji('✖️'),
     ),
   ];
 }

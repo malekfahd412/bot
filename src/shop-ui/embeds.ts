@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 import { ShopItem, InventoryItem, ActiveBoost, Player } from '../database/schema.js';
 import { SHOP_CATEGORIES, RARITY_CONFIG, EFFECT_TYPE_LABELS, getDailyFeaturedKeys, DAILY_DISCOUNT } from './items-config.js';
 import { formatCoins } from '../utils/helpers.js';
+import { t } from '../utils/i18n.js';
 
 const LINE = '▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬';
 
@@ -17,7 +18,7 @@ function fmtDuration(minutes: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-export function buildMainEmbed(player: Player, allItems: ShopItem[]): EmbedBuilder {
+export function buildMainEmbed(player: Player, allItems: ShopItem[], lang = 'en'): EmbedBuilder {
   const featured = getDailyFeaturedKeys(allItems);
   const featuredItems = featured.map(k => allItems.find(i => i.item_key === k)).filter(Boolean) as ShopItem[];
   const discount = Math.round(1000 * DAILY_DISCOUNT);
@@ -26,21 +27,21 @@ export function buildMainEmbed(player: Player, allItems: ShopItem[]): EmbedBuild
     const r = rarityOf(item);
     const discounted = Math.floor(item.price * (1 - DAILY_DISCOUNT));
     return `${r.icon} **${item.icon} ${item.name}** — ~~${formatCoins(item.price)}~~ **${formatCoins(discounted)}** *(−${discount / 10}%)*`;
-  }).join('\n') || '*No featured items today.*';
+  }).join('\n') || t(lang, 'shop.embeds.main.no_featured');
 
   return new EmbedBuilder()
     .setColor(0xC8A951)
-    .setTitle('🛒  LOS SANTOS BLACK MARKET')
+    .setTitle(t(lang, 'shop.embeds.main.title'))
     .setDescription(
-      `*"Everything has a price in this city. Question is — can you afford it?"*\n${LINE}\n\n` +
-      `⭐ **DAILY FEATURED** — Refreshes at midnight\n${featuredLines}\n\n${LINE}`
+      `*${t(lang, 'shop.embeds.main.quote')}*\n${LINE}\n\n` +
+      `${t(lang, 'shop.embeds.main.featured_header')}\n${featuredLines}\n\n${LINE}`
     )
     .addFields(
-      { name: '💰 Your Balance', value: `**${formatCoins(player.coins)}**`, inline: true },
-      { name: '📦 Categories', value: Object.values(SHOP_CATEGORIES).map(c => `${c.icon} ${c.name}`).join('\n'), inline: true },
+      { name: t(lang, 'shop.embeds.main.balance_field'),    value: `**${formatCoins(player.coins)}**`, inline: true },
+      { name: t(lang, 'shop.embeds.main.categories_field'), value: Object.values(SHOP_CATEGORIES).map(c => `${c.icon} ${c.name}`).join('\n'), inline: true },
       { name: '\u200B', value: '\u200B', inline: true },
     )
-    .setFooter({ text: `GTA Heist RPG • Black Market  |  Use the buttons below to browse` })
+    .setFooter({ text: t(lang, 'shop.embeds.main.footer') })
     .setTimestamp();
 }
 
@@ -50,6 +51,7 @@ export function buildCategoryEmbed(
   page: number,
   totalPages: number,
   player: Player,
+  lang = 'en',
 ): EmbedBuilder {
   const cat = SHOP_CATEGORIES[category];
   const rarityOrder = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
@@ -57,25 +59,25 @@ export function buildCategoryEmbed(
 
   const lines = sorted.map(item => {
     const r = rarityOf(item);
-    const stock = item.stock === -1 ? '' : item.stock === 0 ? ' *(out of stock)*' : ` *(${item.stock} left)*`;
+    const stock = item.stock === -1 ? '' : item.stock === 0 ? ` *(${t(lang, 'shop.embeds.item_detail.stock_out')})*` : ` *(${item.stock} left)*`;
     const avail = item.available ? '' : ' 🔒';
     return `${r.icon} **${item.icon} ${item.name}**${avail}${stock}\n> ${r.label} • ${formatCoins(item.price)}\n> *${item.description.slice(0, 80)}${item.description.length > 80 ? '…' : ''}*`;
-  }).join('\n\n') || '*No items in this category.*';
+  }).join('\n\n') || t(lang, 'shop.embeds.category.no_items');
 
   return new EmbedBuilder()
     .setColor(0xC8A951)
     .setTitle(`${cat.icon}  ${cat.name.toUpperCase()}`)
     .setDescription(`*${cat.description}*\n${LINE}\n\n${lines}\n\n${LINE}`)
     .addFields(
-      { name: '💰 Balance', value: formatCoins(player.coins), inline: true },
-      { name: '📦 Items', value: `${items.length}`, inline: true },
-      { name: '📄 Page', value: `${page + 1} / ${totalPages}`, inline: true },
+      { name: t(lang, 'shop.embeds.category.balance_field'), value: formatCoins(player.coins), inline: true },
+      { name: t(lang, 'shop.embeds.category.items_field'),   value: `${items.length}`, inline: true },
+      { name: t(lang, 'shop.embeds.category.page_field'),    value: `${page + 1} / ${totalPages}`, inline: true },
     )
-    .setFooter({ text: 'Select an item from the dropdown to view details & purchase' })
+    .setFooter({ text: t(lang, 'shop.embeds.category.footer') })
     .setTimestamp();
 }
 
-export function buildItemDetailEmbed(item: ShopItem, player: Player): EmbedBuilder {
+export function buildItemDetailEmbed(item: ShopItem, player: Player, lang = 'en'): EmbedBuilder {
   const r = rarityOf(item);
   const effectLabel = EFFECT_TYPE_LABELS[item.effect_type] ?? item.effect_type;
   const effectStr = item.effect_type === 'XP_BOOST' || item.effect_type === 'COIN_BOOST'
@@ -87,7 +89,15 @@ export function buildItemDetailEmbed(item: ShopItem, player: Player): EmbedBuild
         : String(item.effect_value);
 
   const canAfford = player.coins >= item.price;
-  const stockLine = item.stock === -1 ? '∞ Unlimited' : item.stock === 0 ? '❌ Out of Stock' : `${item.stock} remaining`;
+  const stockLine = item.stock === -1
+    ? t(lang, 'shop.embeds.item_detail.stock_unlimited')
+    : item.stock === 0
+      ? t(lang, 'shop.embeds.item_detail.stock_out')
+      : t(lang, 'shop.embeds.item_detail.stock_remaining', { count: String(item.stock) });
+
+  const balanceLine = canAfford
+    ? t(lang, 'shop.embeds.item_detail.balance_ok',  { balance: formatCoins(player.coins) })
+    : t(lang, 'shop.embeds.item_detail.balance_no',  { balance: formatCoins(player.coins) });
 
   return new EmbedBuilder()
     .setColor(r.color)
@@ -96,14 +106,17 @@ export function buildItemDetailEmbed(item: ShopItem, player: Player): EmbedBuild
       `${r.border.repeat(28)}\n\n${item.description}\n\n${r.border.repeat(28)}`
     )
     .addFields(
-      { name: '✨ Rarity',    value: r.label,            inline: true },
-      { name: '🏷️ Price',    value: formatCoins(item.price), inline: true },
-      { name: '📦 Stock',    value: stockLine,           inline: true },
-      { name: effectLabel,   value: effectStr,           inline: true },
-      { name: '⏱️ Duration', value: fmtDuration(item.effect_duration), inline: true },
-      { name: '💰 Balance',  value: canAfford ? `${formatCoins(player.coins)} ✅` : `${formatCoins(player.coins)} ❌ Insufficient`, inline: true },
+      { name: t(lang, 'shop.embeds.item_detail.rarity_field'),   value: r.label,                inline: true },
+      { name: t(lang, 'shop.embeds.item_detail.price_field'),    value: formatCoins(item.price), inline: true },
+      { name: t(lang, 'shop.embeds.item_detail.stock_field'),    value: stockLine,               inline: true },
+      { name: effectLabel,                                       value: effectStr,               inline: true },
+      { name: t(lang, 'shop.embeds.item_detail.duration_field'), value: fmtDuration(item.effect_duration), inline: true },
+      { name: t(lang, 'shop.embeds.item_detail.balance_field'),  value: balanceLine,             inline: true },
     )
-    .setFooter({ text: canAfford ? '✅ You can afford this item.' : `❌ You need ${formatCoins(item.price - player.coins)} more.` })
+    .setFooter({ text: canAfford
+      ? t(lang, 'shop.embeds.item_detail.can_afford')
+      : t(lang, 'shop.embeds.item_detail.cannot_afford', { amount: formatCoins(item.price - player.coins) })
+    })
     .setTimestamp();
 }
 
@@ -113,37 +126,38 @@ export function buildInventoryEmbed(
   player: Player,
   page: number,
   totalPages: number,
+  lang = 'en',
 ): EmbedBuilder {
   const PAGE_SIZE = 6;
   const slice = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const itemLines = slice.map(inv =>
     `${inv.item_icon} **${inv.item_name}** ×${inv.quantity}\n> *Acquired <t:${Math.floor(new Date(inv.acquired_at).getTime() / 1000)}:R>*`
-  ).join('\n\n') || '*Your inventory is empty.*';
+  ).join('\n\n') || t(lang, 'shop.embeds.inventory.empty');
 
   const now = Date.now();
   const activeLines = boosts.filter(b => new Date(b.expires_at).getTime() > now).map(b => {
     const exp = Math.floor(new Date(b.expires_at).getTime() / 1000);
     return `${b.item_icon} **${b.item_name}** — expires <t:${exp}:R>`;
-  }).join('\n') || '*No active boosts.*';
+  }).join('\n') || t(lang, 'shop.embeds.inventory.no_boosts');
 
   return new EmbedBuilder()
     .setColor(0xC8A951)
-    .setTitle(`🎒  CRIMINAL STASH — ${player.display_name.toUpperCase()}`)
+    .setTitle(t(lang, 'shop.embeds.inventory.title', { name: player.display_name.toUpperCase() }))
     .setDescription(
-      `*Your personal arsenal of tools and consumables.*\n${LINE}\n\n` +
-      `**📦 INVENTORY** (${items.length} items)\n${itemLines}\n\n${LINE}\n\n` +
-      `**⚡ ACTIVE BOOSTS**\n${activeLines}`
+      `*${t(lang, 'shop.embeds.inventory.subtitle')}*\n${LINE}\n\n` +
+      `**${t(lang, 'shop.embeds.inventory.inventory_header')}** (${items.length} items)\n${itemLines}\n\n${LINE}\n\n` +
+      `**${t(lang, 'shop.embeds.inventory.boosts_header')}**\n${activeLines}`
     )
     .addFields(
-      { name: '💰 Balance', value: formatCoins(player.coins), inline: true },
-      { name: '📄 Page', value: `${page + 1} / ${Math.max(1, totalPages)}`, inline: true },
+      { name: t(lang, 'shop.embeds.inventory.balance_field'), value: formatCoins(player.coins), inline: true },
+      { name: t(lang, 'shop.embeds.inventory.page_field'),    value: `${page + 1} / ${Math.max(1, totalPages)}`, inline: true },
     )
-    .setFooter({ text: 'Select an item to use it • Boosts activate immediately' })
+    .setFooter({ text: t(lang, 'shop.embeds.inventory.footer') })
     .setTimestamp();
 }
 
-export function buildFeaturedEmbed(featuredItems: ShopItem[], player: Player): EmbedBuilder {
+export function buildFeaturedEmbed(featuredItems: ShopItem[], player: Player, lang = 'en'): EmbedBuilder {
   const lines = featuredItems.map(item => {
     const r = rarityOf(item);
     const discounted = Math.floor(item.price * (1 - DAILY_DISCOUNT));
@@ -154,22 +168,22 @@ export function buildFeaturedEmbed(featuredItems: ShopItem[], player: Player): E
 
     return [
       `${r.icon} **${item.icon} ${item.name}** — ${r.label}`,
-      `> ~~${formatCoins(item.price)}~~ → **${formatCoins(discounted)}** *(−10% today only)*`,
+      `> ~~${formatCoins(item.price)}~~ → **${formatCoins(discounted)}** *(−10% ${t(lang, 'shop.embeds.featured.discount_note')})*`,
       `> ${effectLabel}: **${effectStr}** • ${item.effect_duration > 0 ? fmtDuration(item.effect_duration) : 'Instant'}`,
     ].join('\n');
-  }).join('\n\n') || '*No featured items today.*';
+  }).join('\n\n') || t(lang, 'shop.embeds.featured.no_items');
 
   return new EmbedBuilder()
     .setColor(0xFFD700)
-    .setTitle('⭐  DAILY FEATURED ITEMS')
+    .setTitle(t(lang, 'shop.embeds.featured.title'))
     .setDescription(
-      `*Hand-picked deals — available for 24 hours only. Resets at midnight.*\n${LINE}\n\n${lines}\n\n${LINE}`
+      `*${t(lang, 'shop.embeds.featured.subtitle')}*\n${LINE}\n\n${lines}\n\n${LINE}`
     )
     .addFields(
-      { name: '💰 Your Balance', value: formatCoins(player.coins), inline: true },
-      { name: '🕐 Resets', value: '<t:' + getNextMidnightTs() + ':R>', inline: true },
+      { name: t(lang, 'shop.embeds.featured.balance_field'), value: formatCoins(player.coins), inline: true },
+      { name: t(lang, 'shop.embeds.featured.resets_field'),  value: '<t:' + getNextMidnightTs() + ':R>', inline: true },
     )
-    .setFooter({ text: 'GTA Heist RPG • Daily Black Market Deals' })
+    .setFooter({ text: t(lang, 'shop.embeds.featured.footer') })
     .setTimestamp();
 }
 
@@ -179,35 +193,35 @@ function getNextMidnightTs(): number {
   return Math.floor(d.getTime() / 1000);
 }
 
-export function buildPurchaseSuccessEmbed(item: ShopItem, player: Player): EmbedBuilder {
+export function buildPurchaseSuccessEmbed(item: ShopItem, player: Player, lang = 'en'): EmbedBuilder {
   const r = rarityOf(item);
   return new EmbedBuilder()
     .setColor(0x00D26A)
-    .setTitle(`✅  PURCHASE COMPLETE`)
+    .setTitle(t(lang, 'shop.embeds.purchase_success.title'))
     .setDescription(
-      `${LINE}\n\n${item.icon} **${item.name}** has been added to your stash.\n\n${LINE}`
+      `${LINE}\n\n${item.icon} ${t(lang, 'shop.embeds.purchase_success.body', { name: item.name })}\n\n${LINE}`
     )
     .addFields(
-      { name: '✨ Rarity',     value: r.label,                       inline: true },
-      { name: '💸 Paid',      value: formatCoins(item.price),        inline: true },
-      { name: '💰 Remaining', value: formatCoins(player.coins - item.price), inline: true },
+      { name: t(lang, 'shop.embeds.purchase_success.rarity_field'),   value: r.label,                                   inline: true },
+      { name: t(lang, 'shop.embeds.purchase_success.paid_field'),     value: formatCoins(item.price),                   inline: true },
+      { name: t(lang, 'shop.embeds.purchase_success.remaining_field'),value: formatCoins(player.coins - item.price),    inline: true },
     )
-    .setFooter({ text: 'Use /shop → My Inventory to use your new item' })
+    .setFooter({ text: t(lang, 'shop.embeds.purchase_success.footer') })
     .setTimestamp();
 }
 
-export function buildUseItemEmbed(item: InventoryItem, boost: ActiveBoost | null, crateReward: ShopItem | null): EmbedBuilder {
+export function buildUseItemEmbed(item: InventoryItem, boost: ActiveBoost | null, crateReward: ShopItem | null, lang = 'en'): EmbedBuilder {
   if (crateReward) {
     const r = RARITY_CONFIG[crateReward.rarity as keyof typeof RARITY_CONFIG] ?? RARITY_CONFIG.common;
     return new EmbedBuilder()
       .setColor(r.color)
-      .setTitle('📦  CRATE OPENED!')
+      .setTitle(t(lang, 'shop.embeds.crate_opened.title'))
       .setDescription(
-        `${LINE}\n\nYou cracked open **${item.item_name}** and found...\n\n` +
+        `${LINE}\n\n${t(lang, 'shop.embeds.crate_opened.body', { crate: item.item_name })}\n\n` +
         `${r.icon} **${crateReward.icon} ${crateReward.name}**\n*${crateReward.description}*\n\n${LINE}`
       )
-      .addFields({ name: '✨ Rarity', value: r.label, inline: true })
-      .setFooter({ text: 'The reward has been added to your inventory' })
+      .addFields({ name: t(lang, 'shop.embeds.crate_opened.rarity_field'), value: r.label, inline: true })
+      .setFooter({ text: t(lang, 'shop.embeds.crate_opened.footer') })
       .setTimestamp();
   }
 
@@ -215,19 +229,19 @@ export function buildUseItemEmbed(item: InventoryItem, boost: ActiveBoost | null
     const exp = Math.floor(new Date(boost.expires_at).getTime() / 1000);
     return new EmbedBuilder()
       .setColor(0x9B59B6)
-      .setTitle('⚡  BOOST ACTIVATED')
-      .setDescription(`${LINE}\n\n**${item.item_icon} ${item.item_name}** is now active.\n\n${LINE}`)
+      .setTitle(t(lang, 'shop.embeds.boost_activated.title'))
+      .setDescription(`${LINE}\n\n${t(lang, 'shop.embeds.boost_activated.body', { icon: item.item_icon, name: item.item_name })}\n\n${LINE}`)
       .addFields(
-        { name: '⏱️ Expires', value: `<t:${exp}:R> (<t:${exp}:t>)`, inline: false },
+        { name: t(lang, 'shop.embeds.boost_activated.expires_field'), value: `<t:${exp}:R> (<t:${exp}:t>)`, inline: false },
       )
-      .setFooter({ text: 'Your boost is now active — go run some heists!' })
+      .setFooter({ text: t(lang, 'shop.embeds.boost_activated.footer') })
       .setTimestamp();
   }
 
   return new EmbedBuilder()
     .setColor(0x00D26A)
-    .setTitle('✅  ITEM USED')
-    .setDescription(`${LINE}\n\n**${item.item_icon} ${item.item_name}** has been applied.\n\n${LINE}`)
+    .setTitle(t(lang, 'shop.embeds.item_used.title'))
+    .setDescription(`${LINE}\n\n${t(lang, 'shop.embeds.item_used.body', { icon: item.item_icon, name: item.item_name })}\n\n${LINE}`)
     .setTimestamp();
 }
 

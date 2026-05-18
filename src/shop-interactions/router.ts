@@ -225,8 +225,9 @@ async function handlePurchase(interaction: ButtonInteraction, itemId: string, fe
   if (item.stock > 0) ShopItemDB.decrementStock(item.id);
 
   const updated = PlayerDB.findByDiscordId(user.id)!;
-  const embed = buildPurchaseSuccessEmbed(item, updated);
-  const rows = buildItemDetailRows(item, updated.coins >= item.price, item.stock === 1);
+  const lang = updated.language ?? 'en';
+  const embed = buildPurchaseSuccessEmbed(item, updated, lang);
+  const rows = buildItemDetailRows(item, updated.coins >= item.price, item.stock === 1, lang);
 
   await interaction.update({ embeds: [embed], components: rows });
 }
@@ -264,11 +265,12 @@ async function handleUseItem(interaction: StringSelectMenuInteraction, inventory
 
   const user = interaction.user;
   const player = PlayerSystem.getOrCreate(user.id, user.displayName, user.displayAvatarURL({ extension: 'png', size: 256 }));
+  const lang = player.language ?? 'en';
 
-  const embed = buildUseItemEmbed(invItem, boost, crateReward);
+  const embed = buildUseItemEmbed(invItem, boost, crateReward, lang);
   const allInv = InventoryDB.getPlayer(user.id);
   const boosts = BoostDB.getActive(user.id);
-  const rows = buildInventoryRows(allInv, 0, Math.max(1, Math.ceil(allInv.length / 6)));
+  const rows = buildInventoryRows(allInv, 0, Math.max(1, Math.ceil(allInv.length / 6)), lang);
 
   await interaction.update({ embeds: [embed], components: rows });
 }

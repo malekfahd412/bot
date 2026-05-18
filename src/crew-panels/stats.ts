@@ -16,12 +16,13 @@ export async function showStatsPanel(interaction: ButtonInteraction): Promise<vo
     return;
   }
 
+  const lang = player.language ?? 'en';
   const members = CrewDB.getMembers(crew.id);
   const allCrews = CrewDB.getLeaderboard(100);
   const globalRank = allCrews.findIndex(c => c.id === crew.id) + 1 || allCrews.length + 1;
 
   await interaction.update({
-    embeds: [buildStatsEmbed(crew, members, globalRank)],
-    components: buildStatsRows(),
+    embeds: [buildStatsEmbed(crew, members, globalRank, lang)],
+    components: buildStatsRows(lang),
   });
 }

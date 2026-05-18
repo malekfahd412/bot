@@ -16,6 +16,7 @@ export async function showInventory(
     user.displayName,
     user.displayAvatarURL({ extension: 'png', size: 256 }),
   );
+  const lang = player.language ?? 'en';
 
   BoostDB.purgeExpired();
 
@@ -24,8 +25,8 @@ export async function showInventory(
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const safePage = Math.max(0, Math.min(page, totalPages - 1));
 
-  const embed = buildInventoryEmbed(items, boosts, player, safePage, totalPages);
-  const rows = buildInventoryRows(items, safePage, totalPages);
+  const embed = buildInventoryEmbed(items, boosts, player, safePage, totalPages, lang);
+  const rows = buildInventoryRows(items, safePage, totalPages, lang);
 
   await interaction.update({ embeds: [embed], components: rows });
 }

@@ -14,9 +14,10 @@ export async function showShopMain(
     user.displayName,
     user.displayAvatarURL({ extension: 'png', size: 256 }),
   );
+  const lang = player.language ?? 'en';
   const allItems = ShopItemDB.getAvailable();
-  const embed = buildMainEmbed(player, allItems);
-  const rows = buildMainRows();
+  const embed = buildMainEmbed(player, allItems, lang);
+  const rows = buildMainRows(lang);
 
   if (update && interaction.isButton()) {
     await interaction.update({ embeds: [embed], components: rows });

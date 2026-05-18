@@ -16,12 +16,13 @@ export async function showWarsPanel(interaction: ButtonInteraction): Promise<voi
     return;
   }
 
+  const lang = player.language ?? 'en';
   const active = CrewWarDB.getActiveForCrew(crew.id);
   const history = CrewWarDB.getHistoryForCrew(crew.id, 5);
   const allCrews = CrewDB.getAllCrews();
 
   await interaction.update({
-    embeds: [buildWarsEmbed(crew, active, history)],
-    components: buildWarsRows(allCrews, crew.id, active),
+    embeds: [buildWarsEmbed(crew, active, history, lang)],
+    components: buildWarsRows(allCrews, crew.id, active, lang),
   });
 }

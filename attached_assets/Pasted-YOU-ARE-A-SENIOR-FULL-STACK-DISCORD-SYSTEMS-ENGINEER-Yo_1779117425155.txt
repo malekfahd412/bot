@@ -1,0 +1,317 @@
+YOU ARE A SENIOR FULL-STACK + DISCORD SYSTEMS ENGINEER.
+
+Your task is to FULLY FIX, COMPLETE, AND FINISH the immersion/theme/localization systems across the ENTIRE GTA RPG PROJECT.
+
+This is NOT a partial patch.
+This is a COMPLETE production-grade refactor + repair pass.
+
+==================================================
+🔥 CRITICAL ISSUES THAT MUST BE FIXED
+==================================================
+
+The following systems are currently incomplete or broken:
+
+1. Arabic localization is NOT fully applied
+2. Shop system still contains English text in Arabic mode
+3. Crew system still contains English text in Arabic mode
+4. Some commands are broken or not deployed
+5. /admin theme command does not work
+6. Backgrounds are STILL using old static asset images
+7. Immersion engine was NOT fully connected
+8. Some embeds still use old rendering logic
+9. Some commands silently fail
+10. Some slash commands do not appear in Discord
+11. Some interactions still crash
+12. Some UI components still use duplicated custom IDs
+13. Some canvas cards still use old backgrounds manually
+
+ALL OF THIS MUST BE FIXED COMPLETELY.
+
+==================================================
+🔥 PRIMARY GOAL
+==================================================
+
+Create a FULLY IMMERSIVE bilingual GTA RPG system.
+
+Arabic mode should feel:
+- native
+- immersive
+- cinematic
+- natural
+
+NOT machine translated.
+
+==================================================
+🔥 PART 1 — FULL SHOP LOCALIZATION
+==================================================
+
+The ENTIRE shop system must support FULL Arabic localization.
+
+This includes:
+- category names
+- item names
+- rarity labels
+- descriptions
+- button labels
+- select placeholders
+- footer text
+- boost descriptions
+- purchase messages
+- errors
+- success responses
+- inventory panel
+- item usage panel
+- black market
+- boosts
+- consumables
+- all embeds
+- all canvas text
+- all dynamic strings
+
+==================================================
+🔥 REQUIREMENT
+==================================================
+
+When player language = Arabic:
+NOTHING inside shop should remain English.
+
+EVERYTHING must fully switch to Arabic.
+
+==================================================
+🔥 PART 2 — FULL CREW LOCALIZATION
+==================================================
+
+The ENTIRE crew system must fully support Arabic.
+
+Translate:
+- crew panel
+- member labels
+- buttons
+- permissions
+- ranks
+- logs
+- crew actions
+- invites
+- management menus
+- descriptions
+- placeholders
+- dropdowns
+- tactical alerts
+- embed footers
+- activity messages
+
+Arabic mode should feel like:
+a premium Arabic GTA RPG interface.
+
+==================================================
+🔥 PART 3 — FIX /admin theme COMMAND
+==================================================
+
+The command currently DOES NOT WORK.
+
+FIX IT COMPLETELY.
+
+Requirements:
+- command deploys correctly
+- appears in Discord
+- works without errors
+- persists selected theme
+- updates immersion engine live
+- changes embed atmosphere globally
+- updates canvas cards
+- updates panels
+- updates cards instantly
+
+==================================================
+🔥 ADMIN THEME ENGINE
+==================================================
+
+Admins must be able to:
+- change global theme live
+- preview themes
+- rotate themes
+- enable event themes
+- enable seasonal themes
+- force override themes
+- reset to automatic mode
+
+==================================================
+🔥 THEMES MUST AFFECT
+==================================================
+
+- embeds
+- canvas cards
+- shop visuals
+- crew visuals
+- profile visuals
+- event visuals
+- heist visuals
+- leaderboard visuals
+- colors
+- gradients
+- wording
+- atmosphere
+
+==================================================
+🔥 PART 4 — REMOVE OLD STATIC BACKGROUNDS
+==================================================
+
+The project is STILL using:
+assets/backgrounds/
+
+This MUST stop completely.
+
+REMOVE ALL old static rendering logic.
+
+DO NOT hardcode:
+- PNG backgrounds
+- local background paths
+- fixed theme images
+
+==================================================
+🔥 REPLACE WITH
+==================================================
+
+A dynamic immersion rendering system.
+
+Canvas cards should render:
+- gradients
+- overlays
+- atmosphere effects
+- procedural styling
+- theme-based visuals
+
+WITHOUT fixed image files.
+
+==================================================
+🔥 OPTIONAL
+==================================================
+
+If needed:
+USE CANVAS rendering utilities to dynamically generate:
+- lighting
+- neon effects
+- grids
+- rain overlays
+- police alerts
+- cyberpunk visuals
+- seasonal atmosphere
+
+==================================================
+🔥 PART 5 — FIX ALL DEPLOYMENT ISSUES
+==================================================
+
+Some commands still:
+- do not appear
+- do not sync
+- fail after deploy
+- silently break
+
+Implement:
+- command registry validation
+- deployment diagnostics
+- startup sync logs
+- duplicate command detection
+- auto-registration verification
+
+==================================================
+🔥 PART 6 — FIX ALL INTERACTION ERRORS
+==================================================
+
+Fix:
+- interaction failed
+- unknown interaction
+- duplicate custom_id
+- expired interaction
+- invalid form body
+- button update race conditions
+
+==================================================
+🔥 CUSTOM ID SYSTEM
+==================================================
+
+Implement:
+GLOBAL UNIQUE COMPONENT ID GENERATOR
+
+Requirements:
+- no duplicated IDs
+- scoped IDs
+- page-safe IDs
+- interaction-safe IDs
+- reusable helper utilities
+
+==================================================
+🔥 PART 7 — IMMERSION UPGRADE
+==================================================
+
+The immersion engine still feels incomplete.
+
+Upgrade it heavily.
+
+==================================================
+🔥 ADD
+==================================================
+
+Dynamic:
+- tactical warnings
+- operation alerts
+- police pressure states
+- black market states
+- heat system atmosphere
+- event intensity
+- seasonal immersion
+
+==================================================
+🔥 EMBEDS SHOULD FEEL
+==================================================
+
+Like:
+- GTA Online operations
+- underground criminal networks
+- live tactical systems
+- cyberpunk command centers
+
+NOT default Discord embeds.
+
+==================================================
+🔥 PART 8 — STABILITY FIRST
+==================================================
+
+DO NOT BREAK:
+- existing data
+- player profiles
+- shop inventory
+- XP systems
+- crew systems
+- economy
+- existing routes
+
+Refactor safely.
+
+==================================================
+🔥 FINAL REQUIRED RESULT
+==================================================
+
+After completion:
+
+✅ Arabic fully works everywhere
+✅ English fully works everywhere
+✅ Shop fully localized
+✅ Crew fully localized
+✅ /admin theme fully functional
+✅ Dynamic themes working
+✅ Canvas cards updated dynamically
+✅ No old static backgrounds
+✅ No duplicate component IDs
+✅ No interaction crashes
+✅ No silent command failures
+✅ Commands fully deployed
+✅ Immersion engine fully connected
+✅ Stable production architecture
+✅ Replit compatible
+✅ bot-hosting.net compatible
+
+IMPORTANT:
+FIX EVERYTHING IN PLACE.
+DO NOT CREATE HALF-FINISHED SYSTEMS.
+MAKE IT PRODUCTION READY.

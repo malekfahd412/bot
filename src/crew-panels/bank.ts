@@ -16,11 +16,12 @@ export async function showBankPanel(interaction: ButtonInteraction): Promise<voi
     return;
   }
 
+  const lang = player.language ?? 'en';
   const transactions = CrewTransactionDB.getRecent(crew.id, 8);
   const isOwner = player.crew_role === 'owner';
 
   await interaction.update({
-    embeds: [buildBankEmbed(crew, transactions)],
-    components: buildBankRows(isOwner),
+    embeds: [buildBankEmbed(crew, transactions, lang)],
+    components: buildBankRows(isOwner, lang),
   });
 }

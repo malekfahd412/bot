@@ -579,7 +579,7 @@ async function handleDisbandConfirm(interaction: ButtonInteraction): Promise<voi
         .setDescription(`**[${crew.tag}] ${crew.name}** has been permanently disbanded.`)
         .setTimestamp(),
     ],
-    components: buildNoCrewRows(),
+    components: buildNoCrewRows(player.language ?? 'en'),
   });
 }
 
@@ -606,7 +606,7 @@ async function handleLeaveConfirm(interaction: ButtonInteraction): Promise<void>
         .setDescription(`You have left **[${crew?.tag ?? '?'}] ${crew?.name ?? 'the crew'}**. Stay out of trouble.`)
         .setTimestamp(),
     ],
-    components: buildNoCrewRows(),
+    components: buildNoCrewRows(player.language ?? 'en'),
   });
 }
 

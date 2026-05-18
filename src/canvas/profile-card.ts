@@ -5,41 +5,42 @@ import {
 import { COLORS } from '../utils/constants.js';
 import { getRank, getXPProgress, formatNumber, formatCoins, getSuccessRate } from '../utils/helpers.js';
 import type { Player } from '../database/schema.js';
+import { ThemeEngine } from '../systems/theme.js';
 
 const W = 800;
 const H = 400;
-const BACKGROUND_IMAGE_PATH = 'assets/backgrounds/profile-card.png';
 
 export async function generateProfileCard(player: Player, globalRank: number): Promise<Buffer> {
   const { canvas, ctx } = makeCanvas(W, H);
   const displayName = player.display_name;
+  const theme = ThemeEngine.getActive();
 
-  // Background
-  const bg = await tryLoadImage(BACKGROUND_IMAGE_PATH);
-  if (bg) {
-    ctx.drawImage(bg as any, 0, 0, W, H);
-  } else {
-    ctx.fillStyle = '#0A0A14';
-    ctx.fillRect(0, 0, W, H);
-  }
+  // Dynamic theme background — no static file dependency
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, theme.gradientA);
+  bgGrad.addColorStop(1, theme.gradientB);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
 
   ctx.fillStyle = 'rgba(0,0,0,0.45)';
   ctx.fillRect(0, 0, W, H);
   drawGrid(ctx, 0, 0, W, H, 35);
 
-  // Left accent stripe
+  // Left accent stripe — uses theme primary color
+  const primaryHex = '#' + theme.primaryColor.toString(16).padStart(6, '0');
+  const accentHex  = COLORS.accent;
   const stripeGrad = ctx.createLinearGradient(0, 0, 0, H);
-  stripeGrad.addColorStop(0, COLORS.primary);
-  stripeGrad.addColorStop(1, COLORS.accent);
+  stripeGrad.addColorStop(0, primaryHex);
+  stripeGrad.addColorStop(1, accentHex);
   ctx.fillStyle = stripeGrad;
   ctx.fillRect(0, 0, 4, H);
 
   // Rank badge
   const rank = getRank(player.level);
   fillRoundedRect(ctx, W - 182, 18, 164, 36, 8, 'rgba(200,169,81,0.12)');
-  strokeRoundedRect(ctx, W - 182, 18, 164, 36, 8, COLORS.primary, 1);
+  strokeRoundedRect(ctx, W - 182, 18, 164, 36, 8, primaryHex, 1);
   ctx.font = 'bold 13px Arial';
-  ctx.fillStyle = COLORS.primary;
+  ctx.fillStyle = primaryHex;
   ctx.textAlign = 'center';
   ctx.fillText(`${rank.icon}  ${rank.name}`, W - 100, 42);
 
@@ -50,7 +51,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
   ctx.save();
   ctx.beginPath();
   ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 3, 0, Math.PI * 2);
-  ctx.fillStyle = COLORS.primary;
+  ctx.fillStyle = primaryHex;
   ctx.fill();
   ctx.restore();
 
@@ -72,7 +73,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
 
   // Display name
   ctx.textAlign = 'left';
-  drawGlowText(ctx, displayName, 158, 72, '#FFFFFF', COLORS.primary, 28, 'bold');
+  drawGlowText(ctx, displayName, 158, 72, '#FFFFFF', primaryHex, 28, 'bold');
   ctx.font = '14px Arial';
   ctx.fillStyle = COLORS.textMuted;
   ctx.fillText(`#${globalRank} GLOBAL  •  LVL ${player.level}`, 160, 100);
@@ -88,7 +89,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
   ctx.fillStyle = COLORS.textMuted;
   ctx.fillText(`XP ${formatNumber(xpProgress.current)} / ${formatNumber(xpProgress.needed)}`, barX, barY + 28);
   ctx.textAlign = 'right';
-  ctx.fillStyle = COLORS.primary;
+  ctx.fillStyle = primaryHex;
   ctx.fillText(`${Math.round(xpProgress.percent * 100)}%`, barX + barW, barY + 28);
 
   // Stat boxes
@@ -98,7 +99,7 @@ export async function generateProfileCard(player: Player, globalRank: number): P
     { label: 'SUCCESS RATE', value: getSuccessRate(player.total_heists, player.successful_heists), color: COLORS.success },
     { label: 'STREAK', value: `${player.streak_current} 🔥`, color: COLORS.warning },
     { label: 'TOTAL EARNED', value: formatCoins(player.total_earnings), color: COLORS.gold },
-    { label: 'HARDEST JOB', value: (player.hardest_heist ?? 'NONE').toUpperCase(), color: COLORS.accent },
+    { label: 'HARDEST JOB', value: (player.hardest_heist ?? 'NONE').toUpperCase(), color: accentHex },
   ];
 
   const cols = 3;
