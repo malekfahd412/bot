@@ -1,0 +1,51 @@
+{
+  "errors": {
+    "generic": "❌ حدث خطأ. حاول مجدداً.",
+    "no_permission": "🚫 ليس لديك صلاحية لهذا الأمر.",
+    "admin_only": "🚫 للمشرفين فقط.",
+    "not_in_crew": "❌ أنت لست في عصابة.",
+    "already_in_crew": "❌ أنت بالفعل في عصابة.",
+    "cooldown": "⏰ تمهّل. حاول مجدداً بعد **{{seconds}}** ثانية.",
+    "not_found": "❌ غير موجود.",
+    "db_error": "❌ خطأ في قاعدة البيانات. حاول مجدداً.",
+    "missing_setup": "⚙️ الميزة غير مُفعّلة. تواصل مع الإدارة."
+  },
+  "buttons": {
+    "confirm": "✅ تأكيد",
+    "cancel": "❌ إلغاء",
+    "back": "⬅️ رجوع",
+    "next": "التالي ➡️",
+    "close": "✖️ إغلاق",
+    "refresh": "🔄 تحديث",
+    "view": "🔍 عرض"
+  },
+  "footer": {
+    "default": "GTA Heist RPG",
+    "crew": "GTA Heist RPG • نظام العصابات",
+    "shop": "GTA Heist RPG • السوق السوداء",
+    "events": "GTA Heist RPG • العمليات الحية",
+    "admin": "GTA Heist RPG • لوحة الإدارة",
+    "season": "GTA Heist RPG • نظام المواسم"
+  },
+  "language": {
+    "picker_title": "🌐  اختر لغتك",
+    "picker_desc": "مرحباً في **GTA Heist RPG**.\nاختر لغتك المفضلة لتبدأ مسيرتك الإجرامية.\n\nيمكنك التغيير في أي وقت عبر `/language`.",
+    "btn_english": "🇺🇸  English",
+    "btn_arabic": "🇪🇬  العربية",
+    "saved_en": "🇺🇸  Language set to **English**. Let's get to work.",
+    "saved_ar": "🇪🇬  تم ضبط اللغة على **العربية**. هيا نبدأ العمل.",
+    "already_set": "لقد حددت لغتك بالفعل. استخدم `/language` للتغيير.",
+    "current": "🌐 اللغة الحالية: **{{lang}}**"
+  },
+  "ranks": {
+    "CIVILIAN":   "مدني",
+    "ASSOCIATE":  "مُتعاوِن",
+    "SOLDIER":    "جندي",
+    "ENFORCER":   "مُنفِّذ",
+    "LIEUTENANT": "مُلازِم",
+    "UNDERBOSS":  "نائب الزعيم",
+    "CONSIGLIERE":"مستشار",
+    "BOSS":       "زعيم",
+    "GODFATHER":  "العرّاب"
+  }
+}

@@ -1,0 +1,191 @@
+YOU ARE A SENIOR SOFTWARE ARCHITECT.
+
+Implement a FULL MULTI-LANGUAGE SYSTEM for the GTA RPG Discord bot/platform.
+
+PRIMARY GOAL:
+Allow every player to interact with the bot in their preferred language:
+- English
+- Arabic
+
+WITHOUT breaking existing systems.
+
+==================================================
+🔥 CORE REQUIREMENTS
+==================================================
+
+1. BUILD A CENTRALIZED LOCALIZATION SYSTEM
+
+DO NOT hardcode translations inside commands.
+
+Create a scalable i18n architecture:
+- modular
+- maintainable
+- safe
+- production-ready
+
+Structure example:
+
+src/locales/
+  en/
+    common.json
+    shop.json
+    crew.json
+    events.json
+
+  ar/
+    common.json
+    shop.json
+    crew.json
+    events.json
+
+==================================================
+
+2. PLAYER LANGUAGE PREFERENCE
+
+Add language field to player profile/database:
+- "en"
+- "ar"
+
+When a player uses the bot for the first time:
+- automatically show a professional embed/panel
+- ask the player to choose language
+
+Buttons:
+🇺🇸 English
+🇪🇬 العربية
+
+Save selection permanently.
+
+==================================================
+
+3. CENTRAL TRANSLATION ENGINE
+
+Implement helper system:
+
+t(player, "shop.title")
+
+OR equivalent localization helper.
+
+The entire bot MUST use this translation layer.
+
+NO direct hardcoded strings in commands.
+
+==================================================
+
+4. AUTO FALLBACK SYSTEM
+
+If:
+- translation key missing
+- language file incomplete
+
+Then:
+- fallback automatically to English
+- NEVER crash
+- NEVER return undefined
+
+==================================================
+
+5. SMART LANGUAGE DETECTION (OPTIONAL UPGRADE)
+
+If player messages/interactions appear mostly Arabic:
+- suggest Arabic automatically
+
+If mostly English:
+- suggest English
+
+DO NOT force language switch automatically.
+
+==================================================
+
+6. FULL EMBED + BUTTON SUPPORT
+
+Localization must support:
+- embeds
+- buttons
+- modals
+- select menus
+- notifications
+- errors
+- cooldowns
+- logs
+- event panels
+- crew system
+- shop system
+- admin system
+
+==================================================
+
+7. SAFE RTL SUPPORT (IMPORTANT)
+
+Arabic embeds must:
+- display correctly
+- support RTL-friendly formatting
+- avoid broken alignment
+
+Ensure:
+- emojis
+- markdown
+- spacing
+- button labels
+
+render properly in Discord.
+
+==================================================
+
+8. PERFORMANCE + STABILITY
+
+Language system must:
+- cache translations safely
+- avoid excessive file reads
+- never block command execution
+- never crash commands
+
+==================================================
+
+9. DEVELOPER EXPERIENCE
+
+Make translation system easy to extend:
+- adding new language should be simple
+- adding new translation key should be simple
+
+Add:
+- missing translation key warnings
+- validation utilities
+
+==================================================
+
+10. RESPONSE STYLE UPGRADE
+
+Do NOT do literal Google-style translations.
+
+Maintain GTA / cyberpunk / criminal atmosphere in BOTH languages.
+
+English:
+- tactical criminal vibe
+
+Arabic:
+- natural Arabic GTA vibe
+- immersive wording
+- stylish formatting
+
+==================================================
+
+11. IMPORTANT SAFETY RULES
+
+- DO NOT break existing commands
+- DO NOT rewrite unrelated systems
+- DO NOT hardcode Arabic into commands
+- KEEP architecture modular
+- KEEP TypeScript clean
+- KEEP compatibility with current systems
+
+==================================================
+
+FINAL RESULT:
+- stable multilingual bot
+- professional localization architecture
+- Arabic + English fully supported
+- future-ready for more languages
+- no runtime instability
+- no duplicated text logic
+- clean developer workflow

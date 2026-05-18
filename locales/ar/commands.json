@@ -1,0 +1,64 @@
+{
+  "profile": {
+    "your_card": "> 🎯 ملفك الجنائي، يا زعيم.",
+    "other_card": "> 🎯 السجل الجنائي لـ **{{name}}**.",
+    "error": "❌ فشل إنشاء بطاقة الملف. حاول مجدداً."
+  },
+  "daily": {
+    "broken_title": "💔  انقطعت السلسلة",
+    "milestone_title": "🎉  إنجاز السلسلة — {{days}} يوم!",
+    "normal_title": "💰  مكافأة اليوم",
+    "broken_desc": "انقطعت سلسلتك. البداية من جديد من **يوم واحد**.",
+    "normal_desc": "ظهرت. العصابة تحترم ذلك، **{{name}}**.",
+    "xp_field": "⚡ الخبرة المكتسبة",
+    "coins_field": "💵 العملات المكتسبة",
+    "streak_field": "🔥 السلسلة الحالية",
+    "multiplier_field": "📈 مضاعف السلسلة",
+    "milestone_field": "🎯 الإنجاز القادم",
+    "milestone_value": "بعد {{days}} يوم",
+    "footer": "عُد غداً للحفاظ على سلسلتك.",
+    "already_claimed": "⏰ استلمت مكافأتك اليومية بالفعل. عُد غداً، يا زعيم.",
+    "error": "❌ حدث خطأ. حاول مجدداً."
+  },
+  "stats": {
+    "your_dossier": "> 📊 ملفك الجنائي الكامل.",
+    "other_dossier": "> 📊 الملف الجنائي لـ **{{name}}**.",
+    "error": "❌ فشل إنشاء بطاقة الإحصائيات."
+  },
+  "leaderboard": {
+    "empty": "📭 لا يوجد لاعبون بعد. كُن أول من يُسجّل اسمه.",
+    "title_xp": "> 🏆 **الأكثر بحثاً** — أفضل {{count}} مجرمين مرتبين بالخبرة.",
+    "title_coins": "> 🏆 **الأكثر بحثاً** — أفضل {{count}} مجرمين مرتبين بالعملات.",
+    "error": "❌ فشل إنشاء قائمة المتصدرين. حاول مجدداً."
+  },
+  "inventory": {
+    "title": "🎒  مخزون {{name}}",
+    "rank_field": "🏅 الرتبة",
+    "level_field": "📊 المستوى",
+    "coins_field": "💰 العملات",
+    "achievements_title": "🏆 الإنجازات ({{count}})",
+    "achievements_empty_title": "🏆 الإنجازات",
+    "achievements_empty_value": "*لا إنجازات بعد. أتمّ العمليات لكسبها.*",
+    "footer": "GTA Heist RPG • أتمّ العمليات لفتح الإنجازات"
+  },
+  "heist_log": {
+    "modal_title": "تسجيل العملية — {{difficulty}}",
+    "field_name": "اسم العملية",
+    "field_name_placeholder": "مثال: عملية كايو بيريكو، سطو الكازينو",
+    "field_proof": "رابط الإثبات",
+    "field_proof_placeholder": "https://imgur.com/... أو https://streamable.com/...",
+    "field_notes": "ملاحظات (اختياري)",
+    "field_notes_placeholder": "أي تفاصيل إضافية عن العملية...",
+    "teammates_prompt": "👥 اختر رفاقك في العملية (حتى 3). تنتهي الصلاحية بعد 60 ثانية.",
+    "teammates_locked": "✅ تم تأكيد الفريق: {{list}}",
+    "teammates_solo": "بدون فريق (منفرد)",
+    "submitted": "✅ تم إرسال العملية للمراجعة.\nالرقم التعريفي: `{{id}}`",
+    "error": "❌ فشل إرسال العملية. حاول مجدداً.",
+    "review_host": "**القائد:**",
+    "review_team": "**الفريق:**",
+    "review_difficulty": "**الصعوبة:**",
+    "review_proof": "الإثبات",
+    "review_est_xp": "الخبرة المتوقعة",
+    "review_est_coins": "العملات المتوقعة"
+  }
+}

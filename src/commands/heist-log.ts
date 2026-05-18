@@ -16,8 +16,10 @@ import {
 } from 'discord.js';
 
 import { PlayerSystem } from '../systems/player.js';
+import { PlayerDB } from '../database/db.js';
 import { HeistSystem } from '../systems/heist.js';
 import { DIFFICULTY_CONFIG, type Difficulty } from '../utils/constants.js';
+import { t } from '../utils/i18n.js';
 import { formatNumber } from '../utils/helpers.js';
 import { logger } from '../utils/logger.js';
 
@@ -31,42 +33,43 @@ export const data = new SlashCommandBuilder()
       .setDescription('Difficulty of the heist')
       .setRequired(true)
       .addChoices(
-        { name: '🟢 Easy', value: 'easy' },
+        { name: '🟢 Easy',   value: 'easy' },
         { name: '🟡 Normal', value: 'normal' },
-        { name: '🔴 Hard', value: 'hard' },
+        { name: '🔴 Hard',   value: 'hard' },
       )
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  const difficulty = interaction.options.getString('difficulty', true) as Difficulty;
-  const diffConfig = DIFFICULTY_CONFIG[difficulty];
+  const difficulty  = interaction.options.getString('difficulty', true) as Difficulty;
+  const diffConfig  = DIFFICULTY_CONFIG[difficulty];
+  const lang        = PlayerDB.getLanguage(interaction.user.id);
 
   const modal = new ModalBuilder()
     .setCustomId(`heist_modal:${difficulty}`)
-    .setTitle(`Heist Log — ${diffConfig.label}`);
+    .setTitle(t(lang, 'commands.heist_log.modal_title', { difficulty: diffConfig.label }));
 
   modal.addComponents(
     new ActionRowBuilder<TextInputBuilder>().addComponents(
       new TextInputBuilder()
         .setCustomId('heist_name')
-        .setLabel('Heist Name')
-        .setPlaceholder('e.g. The Cayo Perico Job, Diamond Casino Heist')
+        .setLabel(t(lang, 'commands.heist_log.field_name'))
+        .setPlaceholder(t(lang, 'commands.heist_log.field_name_placeholder'))
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
     ),
     new ActionRowBuilder<TextInputBuilder>().addComponents(
       new TextInputBuilder()
         .setCustomId('proof_url')
-        .setLabel('Proof URL')
-        .setPlaceholder('https://imgur.com/... or https://streamable.com/...')
+        .setLabel(t(lang, 'commands.heist_log.field_proof'))
+        .setPlaceholder(t(lang, 'commands.heist_log.field_proof_placeholder'))
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
     ),
     new ActionRowBuilder<TextInputBuilder>().addComponents(
       new TextInputBuilder()
         .setCustomId('notes')
-        .setLabel('Notes (optional)')
-        .setPlaceholder('Any additional context about the heist...')
+        .setLabel(t(lang, 'commands.heist_log.field_notes'))
+        .setPlaceholder(t(lang, 'commands.heist_log.field_notes_placeholder'))
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(false)
     ),
@@ -77,38 +80,38 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
 /* ─────────────────────────── TEAMMATE SELECTOR ─────────────────────────── */
 
-async function askTeammates(interaction: ModalSubmitInteraction): Promise<string[]> {
+async function askTeammates(interaction: ModalSubmitInteraction, lang: string): Promise<string[]> {
   const hostId = interaction.user.id;
 
   const menu = new UserSelectMenuBuilder()
     .setCustomId('heist_team_select')
-    .setPlaceholder('Select up to 3 teammates (or skip)')
+    .setPlaceholder(t(lang, 'commands.heist_log.teammates_prompt'))
     .setMinValues(0)
     .setMaxValues(3);
 
   const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(menu);
 
   await interaction.followUp({
-    content: '👥 Select your teammates (up to 3). This will expire in 60 seconds.',
+    content:    t(lang, 'commands.heist_log.teammates_prompt'),
     components: [row],
-    flags: 64,
+    flags:      64,
   });
 
   return new Promise((resolve) => {
     const collector = interaction.channel?.createMessageComponentCollector({
       componentType: ComponentType.UserSelect,
-      time: 60_000,
-      filter: (i) => i.user.id === hostId && i.customId === 'heist_team_select',
+      time:          60_000,
+      filter:        (i) => i.user.id === hostId && i.customId === 'heist_team_select',
     });
 
     collector?.once('collect', async (i) => {
       const users = i.values.filter(u => u !== hostId);
 
-      await i.update({
-        content: `✅ Teammates locked in: ${users.map(u => `<@${u}>`).join(', ') || 'None (solo run)'}`,
-        components: [],
+      const locked = t(lang, 'commands.heist_log.teammates_locked', {
+        list: users.map(u => `<@${u}>`).join(', ') || t(lang, 'commands.heist_log.teammates_solo'),
       });
 
+      await i.update({ content: locked, components: [] });
       collector.stop('collected');
       resolve(users);
     });
@@ -128,12 +131,11 @@ export async function handleHeistModal(
   await interaction.deferReply({ flags: 64 });
 
   const [, difficulty] = interaction.customId.split(':') as [string, Difficulty];
-
-  const heistName = interaction.fields.getTextInputValue('heist_name').trim();
-  const proofUrl = interaction.fields.getTextInputValue('proof_url').trim();
-  const notes = interaction.fields.getTextInputValue('notes').trim();
-
-  const user = interaction.user;
+  const heistName      = interaction.fields.getTextInputValue('heist_name').trim();
+  const proofUrl       = interaction.fields.getTextInputValue('proof_url').trim();
+  const notes          = interaction.fields.getTextInputValue('notes').trim();
+  const user           = interaction.user;
+  const lang           = PlayerDB.getLanguage(user.id);
 
   PlayerSystem.getOrCreate(
     user.id,
@@ -141,20 +143,18 @@ export async function handleHeistModal(
     user.displayAvatarURL({ extension: 'png', size: 256 })
   );
 
-  // Collect teammates via select menu (non-blocking, 60s window)
-  const teammates = await askTeammates(interaction);
-
+  const teammates  = await askTeammates(interaction, lang);
   const diffConfig = DIFFICULTY_CONFIG[difficulty];
-  const rewards = HeistSystem.calculateRewards(difficulty);
+  const rewards    = HeistSystem.calculateRewards(difficulty);
 
   try {
     const submission = HeistSystem.submit({
-      submitterId: user.id,
+      submitterId:         user.id,
       heistName,
       difficulty,
       teammates,
       proofUrl,
-      notes: notes || undefined,
+      notes:               notes || undefined,
       submissionChannelId: interaction.channelId ?? undefined,
     });
 
@@ -173,9 +173,9 @@ export async function handleHeistModal(
             `**Difficulty:** ${diffConfig.label}`
           )
           .addFields(
-            { name: 'Proof', value: `[View](${proofUrl})`, inline: true },
-            { name: 'Est. XP', value: `~${formatNumber(rewards.xp)}`, inline: true },
-            { name: 'Est. Coins', value: `~$${formatNumber(rewards.coins)}`, inline: true },
+            { name: 'Proof',       value: `[View](${proofUrl})`,          inline: true },
+            { name: 'Est. XP',     value: `~${formatNumber(rewards.xp)}`, inline: true },
+            { name: 'Est. Coins',  value: `~$${formatNumber(rewards.coins)}`, inline: true },
           )
           .setThumbnail(user.displayAvatarURL())
           .setFooter({ text: `ID: ${submission.id}` })
@@ -198,14 +198,14 @@ export async function handleHeistModal(
     }
 
     await interaction.editReply({
-      content: `✅ Heist submitted for review.\nID: \`${submission.id.slice(0, 8)}\``,
+      content: t(lang, 'commands.heist_log.submitted', { id: submission.id.slice(0, 8) }),
     });
 
     logger.game(`Heist submitted by ${user.displayName} — ${heistName} (${difficulty})`);
 
   } catch (err) {
     logger.error('Heist modal submission failed:', err);
-    await interaction.editReply('❌ Failed to submit heist. Please try again.');
+    await interaction.editReply(t(lang, 'commands.heist_log.error'));
   }
 }
 

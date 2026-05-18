@@ -1,0 +1,49 @@
+{
+  "title": "🏪  Black Market",
+  "subtitle": "Gear up. The next job won't wait.",
+  "categories": {
+    "all": "All Items",
+    "weapon": "Weapons",
+    "vehicle": "Vehicles",
+    "boost": "Boosts",
+    "cosmetic": "Cosmetics",
+    "special": "Special"
+  },
+  "rarity": {
+    "common":    "Common",
+    "uncommon":  "Uncommon",
+    "rare":      "Rare",
+    "epic":      "Epic",
+    "legendary": "Legendary"
+  },
+  "fields": {
+    "price":    "💰 Price",
+    "effect":   "⚡ Effect",
+    "duration": "⏱️ Duration",
+    "stock":    "📦 Stock",
+    "rarity":   "✨ Rarity"
+  },
+  "purchase": {
+    "confirm_title": "🛒  Confirm Purchase",
+    "confirm_desc":  "You are about to buy **{{item}}** for **{{price}}**.\nYour balance: **{{balance}}**",
+    "success":       "✅ **{{item}}** purchased. It's yours — use it wisely.",
+    "not_enough":    "❌ Insufficient funds. You need **{{need}}** more coins.",
+    "out_of_stock":  "❌ This item is out of stock.",
+    "unavailable":   "❌ This item is currently unavailable.",
+    "already_owned": "❌ You already own this item.",
+    "error":         "❌ Purchase failed. Please try again."
+  },
+  "boosts": {
+    "active_title": "⚡ Active Boosts",
+    "none_active":  "*No active boosts. Visit the shop to power up.*",
+    "expires":      "Expires {{time}}"
+  },
+  "admin": {
+    "panel_title":   "⚙️  Shop Admin Panel",
+    "items_managed": "{{count}} items in catalogue",
+    "toggle_on":     "✅ Item enabled.",
+    "toggle_off":    "🔴 Item disabled.",
+    "price_updated": "✅ Price updated to **{{price}}**.",
+    "stock_updated": "✅ Stock updated to **{{stock}}**."
+  }
+}

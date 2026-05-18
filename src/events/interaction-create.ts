@@ -15,6 +15,7 @@ import { handleHeistModal } from '../commands/heist-log.js';
 import { handleAdminButton } from '../commands/admin.js';
 import { generateMissionCard } from '../canvas/mission-card.js';
 import { handleCrewJoin } from '../interactions/crewJoin.js';
+import { handleLanguageSelect } from '../interactions/languageSelect.js';
 import { routeCrewButton, routeCrewSelect, routeCrewModal } from '../crew-interactions/router.js';
 import { routeShopButton, routeShopSelect, routeShopModal } from '../shop-interactions/router.js';
 import { routeWarEventButton, routeEventPanelButton, routeEventPanelSelect, routeEventPanelModal, routeEventHistoryButton } from '../event-interactions/router.js';
@@ -109,6 +110,17 @@ export async function execute(
   const button   = interaction as ButtonInteraction;
   const customId = button.customId;
   const [action] = customId.split(':');
+
+  /* ─── LANGUAGE SELECTION ─── */
+  if (customId.startsWith('lang_set:')) {
+    try { await handleLanguageSelect(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Language select error:', err);
+      await safeReplyError(button);
+    }
+    return;
+  }
 
   /* ─── EVENT HISTORY PAGINATION ─── */
   if (customId.startsWith('ehist:')) {

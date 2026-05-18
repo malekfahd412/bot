@@ -1,6 +1,8 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, AttachmentBuilder } from 'discord.js';
 import { PlayerSystem } from '../systems/player.js';
+import { PlayerDB } from '../database/db.js';
 import { generateLeaderboardCard } from '../canvas/leaderboard-card.js';
+import { t } from '../utils/i18n.js';
 import { logger } from '../utils/logger.js';
 
 export const data = new SlashCommandBuilder()
@@ -12,31 +14,33 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
       .addChoices(
         { name: '⚔️ XP (Default)', value: 'xp' },
-        { name: '💰 Coins', value: 'coins' },
+        { name: '💰 Coins',        value: 'coins' },
       )
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   await interaction.deferReply();
 
-  const type = (interaction.options.getString('type') ?? 'xp') as 'xp' | 'coins';
+  const type    = (interaction.options.getString('type') ?? 'xp') as 'xp' | 'coins';
+  const lang    = PlayerDB.getLanguage(interaction.user.id);
   const players = PlayerSystem.getLeaderboard(type, 10);
 
   if (players.length === 0) {
-    await interaction.editReply('📭 No players on record yet. Be the first to make your mark.');
+    await interaction.editReply(t(lang, 'commands.leaderboard.empty'));
     return;
   }
 
   try {
-    const buffer = await generateLeaderboardCard(players, type);
+    const buffer     = await generateLeaderboardCard(players, type);
     const attachment = new AttachmentBuilder(buffer, { name: 'leaderboard.png' });
 
-    await interaction.editReply({
-      content: `> 🏆 **MOST WANTED** — Top ${players.length} criminals ranked by ${type === 'xp' ? 'XP' : 'Coins'}.`,
-      files: [attachment],
-    });
+    const content = type === 'xp'
+      ? t(lang, 'commands.leaderboard.title_xp',    { count: players.length })
+      : t(lang, 'commands.leaderboard.title_coins',  { count: players.length });
+
+    await interaction.editReply({ content, files: [attachment] });
   } catch (err) {
     logger.error('Leaderboard card generation failed:', err);
-    await interaction.editReply('❌ Failed to generate leaderboard. Please try again.');
+    await interaction.editReply(t(lang, 'commands.leaderboard.error'));
   }
 }

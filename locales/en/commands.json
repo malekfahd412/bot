@@ -1,0 +1,64 @@
+{
+  "profile": {
+    "your_card": "> 🎯 Your criminal record, boss.",
+    "other_card": "> 🎯 Criminal record for **{{name}}**.",
+    "error": "❌ Failed to generate profile card. Please try again."
+  },
+  "daily": {
+    "broken_title": "💔  Streak Reset",
+    "milestone_title": "🎉  STREAK MILESTONE — {{days}} DAYS!",
+    "normal_title": "💰  Daily Payday",
+    "broken_desc": "Your streak was broken. Starting fresh from **1 day**.",
+    "normal_desc": "You showed up. The crew respects that, **{{name}}**.",
+    "xp_field": "⚡ XP Earned",
+    "coins_field": "💵 Coins Earned",
+    "streak_field": "🔥 Current Streak",
+    "multiplier_field": "📈 Streak Multiplier",
+    "milestone_field": "🎯 Next Milestone",
+    "milestone_value": "{{days}} days away",
+    "footer": "Come back tomorrow to keep your streak going.",
+    "already_claimed": "⏰ You already claimed your daily reward today. Come back tomorrow, boss.",
+    "error": "❌ Something went wrong. Try again."
+  },
+  "stats": {
+    "your_dossier": "> 📊 Your full criminal dossier.",
+    "other_dossier": "> 📊 Criminal dossier for **{{name}}**.",
+    "error": "❌ Failed to generate stats card."
+  },
+  "leaderboard": {
+    "empty": "📭 No players on record yet. Be the first to make your mark.",
+    "title_xp": "> 🏆 **MOST WANTED** — Top {{count}} criminals ranked by XP.",
+    "title_coins": "> 🏆 **MOST WANTED** — Top {{count}} criminals ranked by Coins.",
+    "error": "❌ Failed to generate leaderboard. Please try again."
+  },
+  "inventory": {
+    "title": "🎒  {{name}}'s Inventory",
+    "rank_field": "🏅 Rank",
+    "level_field": "📊 Level",
+    "coins_field": "💰 Coins",
+    "achievements_title": "🏆 Achievements ({{count}})",
+    "achievements_empty_title": "🏆 Achievements",
+    "achievements_empty_value": "*No achievements yet. Complete heists to earn them.*",
+    "footer": "GTA Heist RPG • Complete heists to unlock achievements"
+  },
+  "heist_log": {
+    "modal_title": "Heist Log — {{difficulty}}",
+    "field_name": "Heist Name",
+    "field_name_placeholder": "e.g. The Cayo Perico Job, Diamond Casino Heist",
+    "field_proof": "Proof URL",
+    "field_proof_placeholder": "https://imgur.com/... or https://streamable.com/...",
+    "field_notes": "Notes (optional)",
+    "field_notes_placeholder": "Any additional context about the heist...",
+    "teammates_prompt": "👥 Select your teammates (up to 3). This will expire in 60 seconds.",
+    "teammates_locked": "✅ Teammates locked in: {{list}}",
+    "teammates_solo": "None (solo run)",
+    "submitted": "✅ Heist submitted for review.\nID: `{{id}}`",
+    "error": "❌ Failed to submit heist. Please try again.",
+    "review_host": "**Host:**",
+    "review_team": "**Team:**",
+    "review_difficulty": "**Difficulty:**",
+    "review_proof": "Proof",
+    "review_est_xp": "Est. XP",
+    "review_est_coins": "Est. Coins"
+  }
+}

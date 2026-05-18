@@ -18,6 +18,7 @@ export interface Player {
   last_heist: string | null;
   crew_id: string | null;
   crew_role: 'owner' | 'officer' | 'member';
+  language: string | null;
   created_at: string;
   updated_at: string;
 }

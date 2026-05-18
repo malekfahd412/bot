@@ -1,0 +1,60 @@
+{
+  "titles": {
+    "info":       "🏴  {{name}}  [{{tag}}]",
+    "create":     "🏴  Create a Crew",
+    "join":       "🤝  Join a Crew",
+    "leave":      "🚪  Leave Crew",
+    "invite":     "📨  Crew Invite",
+    "members":    "👥  Members",
+    "bank":       "🏦  Crew Bank",
+    "territory":  "🗺️  Territory Control",
+    "war":        "⚔️  Crew War"
+  },
+  "fields": {
+    "owner":        "👑 Owner",
+    "level":        "📊 Level",
+    "members":      "👥 Members",
+    "bank":         "🏦 Bank",
+    "reputation":   "⭐ Reputation",
+    "territories":  "🗺️ Territories",
+    "total_heists": "💣 Total Heists",
+    "earnings":     "💰 Total Earnings",
+    "tag":          "🏷️ Tag",
+    "role":         "🎖️ Role",
+    "joined":       "📅 Joined"
+  },
+  "roles": {
+    "owner":   "👑 Owner",
+    "officer": "⭐ Officer",
+    "member":  "🔫 Member"
+  },
+  "messages": {
+    "created":            "✅ Crew **{{name}}** [{{tag}}] created. You're the boss now.",
+    "joined":             "✅ You joined **{{name}}**. Welcome to the family.",
+    "left":               "👋 You left **{{name}}**. Watch your back.",
+    "disbanded":          "💀 Crew **{{name}}** has been disbanded.",
+    "invited":            "📨 **{{target}}** has been invited to **{{crew}}**.",
+    "already_member":     "❌ You are already in crew **{{name}}**.",
+    "not_member":         "❌ You are not in this crew.",
+    "not_owner":          "❌ Only the crew owner can do that.",
+    "crew_not_found":     "❌ Crew **{{name}}** not found.",
+    "name_taken":         "❌ Crew name **{{name}}** is already taken.",
+    "tag_taken":          "❌ Tag **{{tag}}** is already in use.",
+    "max_members":        "❌ Crew is full.",
+    "deposit_success":    "✅ **{{amount}}** deposited to crew bank.",
+    "withdraw_success":   "✅ **{{amount}}** withdrawn from crew bank.",
+    "insufficient_bank":  "❌ Crew bank has insufficient funds."
+  },
+  "territory": {
+    "controlled_by": "Controlled by **{{crew}}**",
+    "unclaimed":     "Unclaimed",
+    "captured":      "🏴 **{{crew}}** captured **{{territory}}**!",
+    "income":        "{{amount}} / hr"
+  },
+  "war": {
+    "challenged":    "⚔️ **{{attacker}}** has challenged **{{defender}}** to war!",
+    "started":       "🔥 War between **{{a}}** and **{{b}}** has begun!",
+    "ended":         "🏆 **{{winner}}** won the crew war!",
+    "score":         "Score: **{{a_score}}** — **{{b_score}}**"
+  }
+}

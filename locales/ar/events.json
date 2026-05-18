@@ -1,0 +1,38 @@
+{
+  "heist": {
+    "available_title": "💣  عملية متاحة — {{title}}",
+    "available_desc":  "وصلت عملية جديدة. اجمع فريقك.\n\n**الصعوبة:** {{difficulty}}\n**المكافأة:** +{{xp}} خبرة  •  {{coins}}\n**الوقت المتاح:** 10 دقائق للانضمام",
+    "xp_field":        "⚡ الخبرة",
+    "coins_field":     "💰 العملات",
+    "expires_field":   "⏳ تنتهي",
+    "complete_title":  "✅  {{title}} — اكتملت",
+    "complete_desc":   "**{{count}}** مجرم نفّذ العملية.",
+    "expired_title":   "⏰  {{title}} — انتهت",
+    "expired_desc":    "لم يظهر أحد. ضاعت الفرصة.",
+    "crew_field":      "👥 الفريق",
+    "join_btn":        "🔫  انضم",
+    "skip_btn":        "تجاهل",
+    "join_reply":      "🔫 **{{name}}** انضم. *({{current}}/{{max}} للتنفيذ التلقائي)*",
+    "already_joined":  "✅ أنت مُسجَّل بالفعل في هذه العملية.",
+    "event_ended":     "⏰ انتهت هذه العملية.",
+    "engine_offline":  "⚠️ محرك الأحداث غير متاح."
+  },
+  "territory": {
+    "conflict_title":  "🏴  نزاع إقليمي — {{territory}}",
+    "conflict_desc":   "السيطرة على **{{territory}}** متاحة.\nمن يقاتل يكسب دخلاً سلبياً لعصابته.\n\n**السيطرة الحالية:** {{owner}}\n**الوقت المتاح:** 10 دقائق للانضمام",
+    "captured_field":  "🏴 المنطقة",
+    "captured_value":  "سيطرة على **{{territory}}**",
+    "income_field":    "💵 الدخل",
+    "current_owner":   "غير مُسيطَر عليها"
+  },
+  "war_event": {
+    "active_title":   "⚔️  حرب عصابات — {{title}}",
+    "active_desc":    "حرب عصابات جارية. قاتل من أجل المجد والمكافآت.",
+    "join_crew":      "✅ {{crew}} انضمت إلى الحرب.",
+    "score_update":   "📊 تم تحديث النتائج.",
+    "ended_title":    "🏆  انتهت الحرب — {{title}}",
+    "winner":         "🏆 الفائز: **{{crew}}**",
+    "reward_xp":      "⚡ خبرة المكافأة",
+    "reward_coins":   "💰 عملات المكافأة"
+  }
+}

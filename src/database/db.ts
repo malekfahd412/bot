@@ -274,6 +274,10 @@ function migrateSchema(database: Database.Database): void {
     database.exec("UPDATE players SET crew_role = 'owner' WHERE discord_id IN (SELECT owner_id FROM crews)");
     logger.info('Migration: players.crew_role added');
   }
+  if (!playerCols.includes('language')) {
+    database.exec('ALTER TABLE players ADD COLUMN language TEXT DEFAULT NULL');
+    logger.info('Migration: players.language added');
+  }
 
   const crewCols = (database.prepare('PRAGMA table_info(crews)').all() as { name: string }[]).map(c => c.name);
   if (!crewCols.includes('level'))
@@ -363,6 +367,25 @@ export const PlayerDB = {
 
   findOrCreate(id: string, display_name: string, avatar?: string): Player {
     return this.findByDiscordId(id) ?? this.create(id, display_name, avatar);
+  },
+
+  /* ── Language preference ─────────────────────────────────────────────── */
+
+  getLanguage(discordId: string): 'en' | 'ar' {
+    const player = this.findByDiscordId(discordId);
+    const lang = player?.language;
+    return lang === 'ar' ? 'ar' : 'en';
+  },
+
+  setLanguage(discordId: string, lang: 'en' | 'ar'): void {
+    getDB()
+      .prepare("UPDATE players SET language = ?, updated_at = datetime('now') WHERE discord_id = ?")
+      .run(lang, discordId);
+  },
+
+  isLanguageUnset(discordId: string): boolean {
+    const player = this.findByDiscordId(discordId);
+    return !player || player.language == null;
   },
 
   update(discord_id: string, data: Partial<Omit<Player, 'id' | 'discord_id' | 'created_at'>>): void {

@@ -1,0 +1,38 @@
+{
+  "heist": {
+    "available_title": "💣  HEIST AVAILABLE — {{title}}",
+    "available_desc":  "A new job has come in. Get your crew together.\n\n**Difficulty:** {{difficulty}}\n**Reward:** +{{xp}} XP  •  {{coins}}\n**Window:** 10 minutes to join",
+    "xp_field":        "⚡ XP",
+    "coins_field":     "💰 Coins",
+    "expires_field":   "⏳ Expires",
+    "complete_title":  "✅  {{title}} — COMPLETE",
+    "complete_desc":   "**{{count}}** criminal{{plural}} pulled off the job.",
+    "expired_title":   "⏰  {{title}} — EXPIRED",
+    "expired_desc":    "Nobody showed up. The opportunity has passed.",
+    "crew_field":      "👥 Crew",
+    "join_btn":        "🔫  Join",
+    "skip_btn":        "Pass",
+    "join_reply":      "🔫 **{{name}}** is in. *({{current}}/{{max}} to auto-execute)*",
+    "already_joined":  "✅ You're already signed in for this event.",
+    "event_ended":     "⏰ This event has already ended.",
+    "engine_offline":  "⚠️ Event engine is offline."
+  },
+  "territory": {
+    "conflict_title":  "🏴  TERRITORY CONFLICT — {{territory}}",
+    "conflict_desc":   "Control of **{{territory}}** is up for grabs.\nWhoever fights earns passive income for their crew.\n\n**Current control:** {{owner}}\n**Window:** 10 minutes to join",
+    "captured_field":  "🏴 Territory",
+    "captured_value":  "**{{territory}}** captured",
+    "income_field":    "💵 Income",
+    "current_owner":   "Unclaimed"
+  },
+  "war_event": {
+    "active_title":   "⚔️  WAR EVENT — {{title}}",
+    "active_desc":    "A crew war is in progress. Fight for glory and rewards.",
+    "join_crew":      "✅ {{crew}} joined the war event.",
+    "score_update":   "📊 Scores updated.",
+    "ended_title":    "🏆  WAR ENDED — {{title}}",
+    "winner":         "🏆 Winner: **{{crew}}**",
+    "reward_xp":      "⚡ Reward XP",
+    "reward_coins":   "💰 Reward Coins"
+  }
+}
