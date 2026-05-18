@@ -1,0 +1,288 @@
+YOU ARE A PRINCIPAL BACKEND RELIABILITY ENGINEER.
+
+You are now entering the FINAL STABILIZATION PHASE for a production GTA RPG platform that will be deployed permanently on:
+- bot-hosting.net
+- optionally Replit Deployments if supported
+
+The project MUST become:
+- highly stable
+- self-healing
+- protected against crashes
+- production hardened
+- long-term maintainable
+- auto-recovering
+- safe under bad requests and runtime failures
+
+==================================================
+🔥 PRIMARY GOAL
+==================================================
+
+DO NOT ADD RANDOM FEATURES.
+
+Your ONLY goal now is:
+
+BUILD A PRODUCTION-STABLE SYSTEM THAT NEVER RANDOMLY DIES.
+
+The platform must survive:
+- runtime exceptions
+- invalid requests
+- API failures
+- route crashes
+- database disconnects
+- promise rejections
+- memory leaks
+- invalid user data
+- broken sessions
+- duplicate interactions
+- frontend request spam
+- unhandled async errors
+- deployment restarts
+
+WITHOUT BREAKING THE PROJECT.
+
+==================================================
+🔥 REQUIRED STABILITY SYSTEMS
+==================================================
+
+1. GLOBAL ERROR HANDLING SYSTEM
+Implement:
+- process.on("uncaughtException")
+- process.on("unhandledRejection")
+- graceful shutdown handlers
+- async route wrappers
+- centralized API error middleware
+- structured error responses
+- safe fallback responses
+
+The server must NEVER silently crash.
+
+==================================================
+
+2. SELF-HEALING SYSTEM
+Build an automatic recovery layer:
+
+If:
+- database pool disconnects
+- API route throws
+- cache fails
+- session store fails
+
+Then:
+- retry safely
+- reconnect automatically
+- log incident
+- keep server alive
+
+==================================================
+
+3. SAFE DATABASE LAYER
+Harden PostgreSQL layer:
+- safe reconnect handling
+- query timeout protection
+- transaction rollback protection
+- prevent hanging queries
+- safe migrations
+- connection retry strategy
+
+Add:
+- health check utilities
+- readiness checks
+- DB heartbeat monitor
+
+==================================================
+
+4. API PROTECTION LAYER
+Implement:
+- global request validation
+- rate limiting
+- anti-spam
+- body size limits
+- malformed JSON protection
+- invalid session protection
+- API abuse protection
+
+==================================================
+
+5. MEMORY + PERFORMANCE PROTECTION
+Prevent:
+- memory leaks
+- giant object retention
+- excessive polling
+- full table scans
+- unnecessary rerenders
+- duplicated queries
+
+Add:
+- efficient caching where safe
+- pagination protection
+- optimized leaderboard queries
+- SQL indexes where needed
+
+==================================================
+
+6. SAFE FRONTEND ARCHITECTURE
+Frontend MUST:
+- never white-screen on API failure
+- have React error boundaries
+- retry failed requests safely
+- show fallback UI
+- prevent crash loops
+- prevent infinite queries
+
+All admin pages must:
+- have loading states
+- have error states
+- handle permission failures cleanly
+
+==================================================
+
+7. HEALTH MONITORING SYSTEM
+Create:
+- /api/healthz
+- /api/readyz
+- /api/status
+
+Status endpoint should include:
+- DB status
+- uptime
+- memory usage
+- active sessions
+- environment
+- API latency
+- deployment mode
+
+==================================================
+
+8. LOGGING SYSTEM
+Implement production-grade logging:
+- request logs
+- API error logs
+- database error logs
+- auth logs
+- admin action logs
+- deployment logs
+
+Requirements:
+- readable console output
+- timestamped logs
+- categorized logs
+- rotating file logs if possible
+
+==================================================
+
+9. DEPLOYMENT HARDENING
+Prepare project for:
+- bot-hosting.net
+- Replit Deployments
+- Node production runtime
+
+Add:
+- production environment handling
+- PORT handling
+- graceful startup
+- graceful shutdown
+- safe process exit
+- startup validation
+
+==================================================
+
+10. AUTO RECOVERY + WATCHDOG
+Build a watchdog system:
+
+If:
+- API freezes
+- DB disconnects
+- memory spikes dangerously
+- event loop stalls
+
+Then:
+- log critical warning
+- attempt safe recovery
+- avoid full crash if possible
+
+==================================================
+
+11. SECURITY HARDENING
+Implement:
+- helmet
+- secure sessions
+- safe cookies
+- CORS protection
+- environment validation
+- hidden stack traces in production
+- admin route protection
+- token validation hardening
+
+==================================================
+
+12. TYPESCRIPT + ARCHITECTURE CLEANUP
+Fix ALL:
+- duplicate exports
+- naming inconsistencies
+- broken imports
+- schema drift
+- unsafe any usage
+- route-level business logic
+- invalid types
+
+NO TypeScript errors allowed.
+
+==================================================
+
+13. FAILSAFE ADMIN SYSTEM
+Protect admin actions:
+- confirmation flows for destructive actions
+- audit logging
+- rollback-safe operations
+- transaction safety
+
+==================================================
+
+14. DISCORD / EXTERNAL FAIL SAFETY
+If external APIs fail:
+- server must continue running
+- requests must fail gracefully
+- retries must be safe
+- no crash allowed
+
+==================================================
+🔥 IMPORTANT RULES
+==================================================
+
+- DO NOT rewrite the entire architecture unnecessarily
+- DO NOT break existing APIs
+- DO NOT delete working systems
+- FIX IN PLACE
+- IMPROVE STABILITY ONLY
+- PRIORITIZE LONG-TERM RELIABILITY
+- KEEP PERFORMANCE HIGH
+- KEEP MEMORY USAGE STABLE
+
+==================================================
+🔥 FINAL RESULT REQUIRED
+==================================================
+
+At the end:
+
+✅ project builds successfully
+✅ no TypeScript errors
+✅ no runtime crashes
+✅ no unstable routes
+✅ graceful recovery exists
+✅ deployment-ready
+✅ production-safe
+✅ health monitoring exists
+✅ logs are clean
+✅ frontend resilient
+✅ backend resilient
+✅ database safe
+✅ API protected
+✅ long-term stable architecture
+
+ALSO:
+If Replit deployment is supported:
+- configure deployment-ready startup
+- validate production environment variables
+- ensure compatibility with autosleep/wakeup behavior
+
+BEGIN FULL STABILIZATION PHASE NOW.
