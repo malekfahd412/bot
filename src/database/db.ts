@@ -19,6 +19,7 @@ export function getDB(): Database.Database {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
+    db.pragma('busy_timeout = 5000'); // wait up to 5s on locked DB instead of throwing
     initSchema(db);
     migrateSchema(db);
     seedTerritories(db);
@@ -26,6 +27,17 @@ export function getDB(): Database.Database {
     logger.success('Database ready');
   }
   return db;
+}
+
+/* ── Database health check ─────────────────────────────────────────────── */
+
+export function checkDBHealth(): { ok: boolean; error?: string } {
+  try {
+    const result = getDB().prepare('SELECT 1 as ping').get() as { ping: number };
+    return { ok: result.ping === 1 };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 /* ─────────────────────────── SCHEMA ─────────────────────────── */

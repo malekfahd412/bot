@@ -6,6 +6,8 @@ import {
 } from 'discord.js';
 
 import { logger } from '../utils/logger.js';
+import { Health } from '../utils/health.js';
+import { InteractionGuard } from '../utils/interaction-guard.js';
 import { ApprovalSystem } from '../systems/approval.js';
 import { HeistSystem } from '../systems/heist.js';
 import { getEventEngine } from '../systems/events.js';
@@ -25,11 +27,30 @@ type CommandModule = {
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
 };
 
+/* ── Safe reply helper — never throws ──────────────────────────────────── */
+async function safeReplyError(interaction: Interaction, message = '❌ An error occurred.'): Promise<void> {
+  try {
+    if ((interaction as ChatInputCommandInteraction).replied || (interaction as ChatInputCommandInteraction).deferred) {
+      await (interaction as ChatInputCommandInteraction).editReply(message).catch(() => null);
+    } else {
+      await (interaction as ChatInputCommandInteraction).reply({ content: message, ephemeral: true }).catch(() => null);
+    }
+  } catch { /* silently swallow — we never want the error handler itself to crash */ }
+}
+
 export async function execute(
   interaction: Interaction,
   commands: Collection<string, CommandModule>,
   configData: { reviewChannelId?: string }
 ): Promise<void> {
+
+  // ── Deduplication: ignore already-processing interactions ───────────────
+  if (!InteractionGuard.tryAcquire(interaction.id)) {
+    logger.warn(`[InteractionGuard] Duplicate interaction ignored: ${interaction.id}`);
+    return;
+  }
+
+  Health.recordInteraction();
 
   /* ─── SLASH COMMANDS ─── */
   if (interaction.isChatInputCommand()) {
@@ -38,10 +59,9 @@ export async function execute(
     try {
       await cmd.execute(interaction);
     } catch (err) {
-      logger.error(String(err));
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: '❌ Error executing command', ephemeral: true }).catch(() => null);
-      }
+      Health.recordError();
+      logger.error(`[Command] /${interaction.commandName} error:`, err);
+      await safeReplyError(interaction, '❌ Error executing command. Please try again.');
     }
     return;
   }
@@ -50,16 +70,18 @@ export async function execute(
   if (interaction.isModalSubmit()) {
     const modal = interaction as ModalSubmitInteraction;
 
-    if (await routeEventPanelModal(modal)) return;
-    if (await routeShopModal(modal)) return;
-    if (await routeCrewModal(modal)) return;
+    try {
+      if (await routeEventPanelModal(modal)) return;
+      if (await routeShopModal(modal)) return;
+      if (await routeCrewModal(modal)) return;
 
-    if (modal.customId.startsWith('heist_modal:')) {
-      try {
+      if (modal.customId.startsWith('heist_modal:')) {
         await handleHeistModal(modal, configData.reviewChannelId);
-      } catch (err) {
-        logger.error(String(err));
       }
+    } catch (err) {
+      Health.recordError();
+      logger.error(`[Modal] ${modal.customId} error:`, err);
+      await safeReplyError(modal, '❌ Failed to process your submission. Please try again.');
     }
     return;
   }
@@ -68,10 +90,15 @@ export async function execute(
   if (interaction.isStringSelectMenu()) {
     const select = interaction as StringSelectMenuInteraction;
 
-    if (await routeEventPanelSelect(select)) return;
-    if (await routeShopSelect(select)) return;
-    if (await routeCrewSelect(select)) return;
-
+    try {
+      if (await routeEventPanelSelect(select)) return;
+      if (await routeShopSelect(select)) return;
+      if (await routeCrewSelect(select)) return;
+    } catch (err) {
+      Health.recordError();
+      logger.error(`[SelectMenu] ${select.customId} error:`, err);
+      await safeReplyError(select, '❌ Failed to process selection.');
+    }
     return;
   }
 
@@ -79,56 +106,61 @@ export async function execute(
   if (!interaction.isButton()) return;
   if (!interaction.inGuild()) return;
 
-  const button = interaction as ButtonInteraction;
+  const button   = interaction as ButtonInteraction;
   const customId = button.customId;
   const [action] = customId.split(':');
 
   /* ─── EVENT HISTORY PAGINATION ─── */
   if (customId.startsWith('ehist:')) {
-    try {
-      await routeEventHistoryButton(button);
-    } catch (err) {
-      logger.error('Event history button error:', err);
+    try { await routeEventHistoryButton(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Event history error:', err);
+      await safeReplyError(button);
     }
     return;
   }
 
   /* ─── EVENT PANEL BUTTONS (admin) ─── */
   if (customId.startsWith('evp:')) {
-    try {
-      await routeEventPanelButton(button);
-    } catch (err) {
-      logger.error('Event panel button error:', err);
+    try { await routeEventPanelButton(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Event panel error:', err);
+      await safeReplyError(button);
     }
     return;
   }
 
   /* ─── WAR EVENT BUTTONS (player announcement) ─── */
   if (customId.startsWith('war_event:')) {
-    try {
-      await routeWarEventButton(button);
-    } catch (err) {
-      logger.error('War event button error:', err);
+    try { await routeWarEventButton(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] War event error:', err);
+      await safeReplyError(button);
     }
     return;
   }
 
   /* ─── SHOP BUTTONS ─── */
   if (customId.startsWith('shop:') || customId.startsWith('shopadm:')) {
-    try {
-      await routeShopButton(button);
-    } catch (err) {
-      logger.error('Shop button error:', err);
+    try { await routeShopButton(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Shop error:', err);
+      await safeReplyError(button);
     }
     return;
   }
 
   /* ─── CREW BUTTONS ─── */
   if (customId.startsWith('crew:')) {
-    try {
-      await routeCrewButton(button);
-    } catch (err) {
-      logger.error('Crew button error:', err);
+    try { await routeCrewButton(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Crew error:', err);
+      await safeReplyError(button);
     }
     return;
   }
@@ -137,23 +169,35 @@ export async function execute(
   if (action === 'event_join') {
     const eventId = customId.slice('event_join:'.length);
     const engine = getEventEngine();
-    if (!engine) { await button.reply({ content: '⚠️ Event engine is offline.', ephemeral: true }); return; }
-    try { await engine.handleJoin(button, eventId); } catch (err) { logger.error('Event join error:', err); }
+    if (!engine) {
+      await button.reply({ content: '⚠️ Event engine is offline.', ephemeral: true }).catch(() => null);
+      return;
+    }
+    try { await engine.handleJoin(button, eventId); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Event join error:', err);
+      await safeReplyError(button);
+    }
     return;
   }
 
   if (action === 'event_skip') {
     const engine = getEventEngine();
-    try { await engine?.handleSkip(button); } catch (err) { logger.error('Event skip error:', err); }
+    try { await engine?.handleSkip(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Event skip error:', err);
+    }
     return;
   }
 
   /* ─── CREW JOIN (legacy) ─── */
   if (action === 'crew_join') {
-    try {
-      await handleCrewJoin(button);
-    } catch (err) {
-      logger.error(String(err));
+    try { await handleCrewJoin(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Crew join error:', err);
       await button.reply({ content: '❌ Failed to join crew', ephemeral: true }).catch(() => null);
     }
     return;
@@ -162,27 +206,35 @@ export async function execute(
   /* ─── ADMIN SYSTEM ─── */
   if (action === 'admin_panel' || action === 'admin_confirm' || action === 'admin_cancel') {
     const isAdmin = button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
-    if (!isAdmin) { await button.reply({ content: '🚫 Admin only.', ephemeral: true }); return; }
-    try { await handleAdminButton(button); } catch (err) { logger.error('Admin button error:', err); }
+    if (!isAdmin) { await button.reply({ content: '🚫 Admin only.', ephemeral: true }).catch(() => null); return; }
+    try { await handleAdminButton(button); }
+    catch (err) {
+      Health.recordError();
+      logger.error('[Button] Admin panel error:', err);
+      await safeReplyError(button);
+    }
     return;
   }
 
   /* ─── BOT RESET ─── */
   if (customId === 'bot_reset_confirm') {
     const isAdmin = button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
-    if (!isAdmin) { await button.reply({ content: '🚫 Admin only', ephemeral: true }); return; }
-    await button.reply({ content: '🧹 Resetting commands...', ephemeral: true });
+    if (!isAdmin) { await button.reply({ content: '🚫 Admin only', ephemeral: true }).catch(() => null); return; }
+    await button.reply({ content: '🧹 Resetting commands...', ephemeral: true }).catch(() => null);
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN!);
     try {
       await rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!), { body: [] });
-      await button.followUp({ content: '✅ Commands cleared.', ephemeral: true });
-    } catch (err) { logger.error(String(err)); }
+      await button.followUp({ content: '✅ Commands cleared.', ephemeral: true }).catch(() => null);
+    } catch (err) {
+      Health.recordError();
+      logger.error('[Button] Bot reset error:', err);
+    }
     return;
   }
 
   /* ─── ADMIN GUARD for heist approve/reject ─── */
   const isAdmin = button.memberPermissions?.has(PermissionFlagsBits.Administrator) ?? false;
-  if (!isAdmin) { await button.reply({ content: '🚫 Admin only', ephemeral: true }); return; }
+  if (!isAdmin) { await button.reply({ content: '🚫 Admin only', ephemeral: true }).catch(() => null); return; }
 
   /* ─── HEIST APPROVE / REJECT ─── */
   const id = customId.split(':')[1];
@@ -215,13 +267,14 @@ export async function execute(
     await button.update(response);
 
   } catch (err) {
-    logger.error(String(err));
+    Health.recordError();
+    logger.error('[Button] Heist review error:', err);
     try {
       if (button.deferred || button.replied) {
-        await button.editReply('❌ Error').catch(() => null);
+        await button.editReply('❌ Error processing review.').catch(() => null);
       } else {
-        await button.reply({ content: '❌ Error', ephemeral: true }).catch(() => null);
+        await button.reply({ content: '❌ Error processing review.', ephemeral: true }).catch(() => null);
       }
-    } catch { /* swallow */ }
+    } catch { /* swallow — error handler must never throw */ }
   }
 }

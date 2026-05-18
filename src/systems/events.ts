@@ -48,30 +48,53 @@ const AUTO_EXECUTE_THRESHOLD = 6;
 /* ─────────────────────────── ENGINE ─────────────────────────── */
 
 export class EventEngine {
-  private events = new Map<string, ActiveEvent>();
-  private client: Client;
+  private events    = new Map<string, ActiveEvent>();
+  private client:    Client;
   private channelId: string;
-  private intervalId?: ReturnType<typeof setInterval>;
+  private intervalId?:      ReturnType<typeof setInterval>;
+  private tickErrors        = 0;
+  private readonly MAX_TICK_ERRORS = 5;
 
   constructor(client: Client, channelId: string) {
-    this.client = client;
+    this.client    = client;
     this.channelId = channelId;
   }
 
   start(): void {
-    logger.info(`Event engine started (channel: ${this.channelId})`);
+    logger.info(`[EventEngine] Started (channel: ${this.channelId})`);
     // First event after 2 minutes, then every EVENT_INTERVAL_MS
     setTimeout(() => this.tick(), 2 * 60 * 1000);
     this.intervalId = setInterval(() => this.tick(), EVENT_INTERVAL_MS);
   }
 
   stop(): void {
-    if (this.intervalId) clearInterval(this.intervalId);
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = undefined;
+    }
+    logger.info('[EventEngine] Stopped.');
+  }
+
+  restart(): void {
+    logger.warn('[EventEngine] Restarting after repeated errors...');
+    this.stop();
+    this.tickErrors = 0;
+    this.events.clear();
+    this.start();
   }
 
   private tick(): void {
     const type: EventType = Math.random() < 0.6 ? 'heist' : 'territory';
-    this.spawnEvent(type).catch(err => logger.error('Event spawn error:', err));
+    this.spawnEvent(type).then(() => {
+      this.tickErrors = 0; // reset error count on success
+    }).catch(err => {
+      this.tickErrors++;
+      logger.error(`[EventEngine] Tick error (${this.tickErrors}/${this.MAX_TICK_ERRORS}):`, err);
+      if (this.tickErrors >= this.MAX_TICK_ERRORS) {
+        logger.warn('[EventEngine] Too many consecutive errors — restarting engine in 30s');
+        setTimeout(() => this.restart(), 30_000);
+      }
+    });
   }
 
   async spawnEvent(type: EventType): Promise<ActiveEvent | null> {
