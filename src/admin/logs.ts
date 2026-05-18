@@ -13,7 +13,9 @@ export type AdminActionType =
   | 'reset_streak'
   | 'heist_approve'
   | 'heist_reject'
-  | 'broadcast';
+  | 'broadcast'
+  | 'give_role'
+  | 'remove_role';
 
 export interface LogAction {
   adminId: string;

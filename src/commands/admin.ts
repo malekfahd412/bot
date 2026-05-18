@@ -7,6 +7,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ButtonInteraction,
+  GuildMember,
 } from 'discord.js';
 
 import { PlayerSystem } from '../systems/player.js';
@@ -62,6 +63,28 @@ export const data = new SlashCommandBuilder()
   // ── Flat subcommands ──
   .addSubcommand(sub =>
     sub.setName('status').setDescription('Live bot health snapshot — uptime, memory, DB, errors')
+  )
+  .addSubcommand(sub =>
+    sub.setName('give-role')
+      .setDescription('Grant or remove a Discord role from a player')
+      .addUserOption(o =>
+        o.setName('player').setDescription('Target player').setRequired(true)
+      )
+      .addRoleOption(o =>
+        o.setName('role').setDescription('Role to grant or remove').setRequired(true)
+      )
+      .addStringOption(o =>
+        o.setName('action')
+          .setDescription('Give or remove the role')
+          .setRequired(true)
+          .addChoices(
+            { name: '✅ Give role',   value: 'give' },
+            { name: '❌ Remove role', value: 'remove' },
+          )
+      )
+      .addStringOption(o =>
+        o.setName('reason').setDescription('Reason (shown in audit log)').setRequired(false).setMaxLength(256)
+      )
   )
   .addSubcommand(sub =>
     sub.setName('broadcast')
@@ -239,6 +262,102 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         .setTimestamp();
 
       await interaction.editReply({ embeds: [embed] });
+      return;
+    }
+
+    if (sub === 'give-role') {
+      const target = interaction.options.getUser('player', true);
+      const role   = interaction.options.getRole('role', true);
+      const action = interaction.options.getString('action', true) as 'give' | 'remove';
+      const reason = interaction.options.getString('reason') ?? 'No reason provided';
+
+      // Resolve the GuildMember — needed to add/remove roles
+      const guild = interaction.guild;
+      if (!guild) { await interaction.editReply('❌ This command must be used inside a server.'); return; }
+
+      let member: GuildMember;
+      try {
+        member = await guild.members.fetch(target.id);
+      } catch {
+        await interaction.editReply(`❌ Could not find **${target.displayName}** in this server.`);
+        return;
+      }
+
+      // Prevent managing roles higher than or equal to the bot's highest role
+      const botMember = guild.members.me;
+      if (!botMember) { await interaction.editReply('❌ Cannot resolve bot member.'); return; }
+
+      if (role.position >= botMember.roles.highest.position) {
+        await interaction.editReply(
+          `❌ I cannot manage **@${role.name}** — it is equal to or higher than my highest role.\n` +
+          `Move my role above **@${role.name}** in Server Settings → Roles, then try again.`
+        );
+        return;
+      }
+
+      // Prevent managing roles equal to or above the admin's highest role (safety guard)
+      const adminMember = interaction.member as GuildMember | null;
+      if (adminMember && role.position >= adminMember.roles.highest.position) {
+        await interaction.editReply(
+          `❌ You cannot manage **@${role.name}** — it is equal to or above your highest role.`
+        );
+        return;
+      }
+
+      const alreadyHas = member.roles.cache.has(role.id);
+
+      if (action === 'give') {
+        if (alreadyHas) {
+          await interaction.editReply(`ℹ️ **${member.displayName}** already has **@${role.name}**.`);
+          return;
+        }
+        try {
+          await member.roles.add(role.id, `[Admin] ${adminId}: ${reason}`);
+        } catch (err) {
+          logger.error('[Admin] Role add failed:', err);
+          await interaction.editReply(`❌ Failed to add role — check bot permissions.`);
+          return;
+        }
+      } else {
+        if (!alreadyHas) {
+          await interaction.editReply(`ℹ️ **${member.displayName}** does not have **@${role.name}**.`);
+          return;
+        }
+        try {
+          await member.roles.remove(role.id, `[Admin] ${adminId}: ${reason}`);
+        } catch (err) {
+          logger.error('[Admin] Role remove failed:', err);
+          await interaction.editReply(`❌ Failed to remove role — check bot permissions.`);
+          return;
+        }
+      }
+
+      AdminLogSystem.log({
+        adminId,
+        actionType: action === 'give' ? 'give_role' : 'remove_role',
+        target: target.id,
+        details: { roleId: role.id, roleName: role.name, action, reason },
+      });
+
+      const isGive  = action === 'give';
+      const color   = isGive ? 0x00D26A : 0xFF4757;
+      const verb    = isGive ? 'granted' : 'removed';
+      const prepos  = isGive ? 'to'      : 'from';
+
+      await interaction.editReply({
+        embeds: [new EmbedBuilder()
+          .setColor(color)
+          .setTitle(`${isGive ? '✅' : '❌'} Role ${verb.charAt(0).toUpperCase() + verb.slice(1)}`)
+          .setThumbnail(target.displayAvatarURL())
+          .addFields(
+            { name: 'Player',  value: `<@${target.id}>`,  inline: true },
+            { name: 'Role',    value: `<@&${role.id}>`,   inline: true },
+            { name: 'Action',  value: `${isGive ? '✅ Given' : '❌ Removed'} ${prepos} ${member.displayName}`, inline: true },
+            { name: 'Reason',  value: reason,              inline: false },
+          )
+          .setFooter({ text: `Admin: ${interaction.user.username} • GTA Heist RPG` })
+          .setTimestamp()],
+      });
       return;
     }
 
